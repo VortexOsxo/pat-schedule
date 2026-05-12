@@ -6,18 +6,22 @@ export const actions: Actions = {
 	add: async ({ request }) => {
 		const formData = await request.formData();
 		const names = formData.getAll('names[]') as string[];
+		const name = formData.get('name') as string;
 		const position = formData.get('position') as string;
 		const startTime = formData.get('startTime') as string;
 		const endTime = formData.get('endTime') as string;
 
-		if (!names.length || !position || !startTime || !endTime) {
+		const finalNames = [...names];
+		if (name) finalNames.push(name);
+
+		if (!finalNames.length || !position || !startTime || !endTime) {
 			return fail(400, { message: 'Missing fields' });
 		}
 
 		const db = await connect();
 		const collection = db.collection('employees');
 
-		const newEmployees = names
+		const newEmployees = finalNames
 			.map(n => n.trim())
 			.filter(Boolean)
 			.map(name => ({

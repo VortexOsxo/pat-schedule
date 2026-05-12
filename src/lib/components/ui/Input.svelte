@@ -8,6 +8,7 @@
 		containerClass?: string;
 		variant?: 'default' | 'range' | 'time';
 		value?: string | number;
+		ref?: HTMLInputElement;
 	}
 
 	let { 
@@ -17,6 +18,7 @@
 		containerClass = '', 
 		variant = 'default',
 		value = $bindable(),
+		ref = $bindable(),
 		...rest 
 	}: Props = $props();
 
@@ -56,6 +58,7 @@
 	
 	<div class="input-wrapper">
 		<input 
+			bind:this={ref}
 			class="input {variant} {className}" 
 			bind:value={value}
 			onblur={handleBlur}

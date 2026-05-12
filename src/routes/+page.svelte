@@ -6,35 +6,38 @@
 	import type { ActionResult } from '@sveltejs/kit';
 
 	// ── Form state ───────────────────────────────────────────────
-	let names = $state(['']);
+	let name = $state('');
 	let position = $state('Patrouilleur');
 	let startTime = $state('08:00');
 	let endTime = $state('16:00');
 	let error = $state('');
-	let successAnim = $state(false);
-	let successCount = $state(0);
+	let nameInput = $state<HTMLInputElement>();
+	let focusKey = $state(0);
 
-	function addNameField() { names = [...names, '']; }
-	function removeName(i: number) { names = names.filter((_, idx) => idx !== i); }
+	import { tick } from 'svelte';
+
+	// Reactive focus manager
+	$effect(() => {
+		if (focusKey > 0) {
+			nameInput?.focus();
+			requestAnimationFrame(() => nameInput?.focus());
+			const t = setTimeout(() => nameInput?.focus(), 50);
+			return () => clearTimeout(t);
+		}
+	});
 
 	function handleEnhance({ formData }: any) {
-		// Optimistic Update
+		const currentName = name.trim();
+		if (!currentName) return;
 		const prev = get(employees);
-		const newNames = (formData.getAll('names[]') as string[]).map(n => n.trim()).filter(Boolean);
-		newNames.forEach(n => employees.add({ name: n, position, startTime, endTime }));
-
-		// Local UI feedback
-		successCount = newNames.length;
-		successAnim = true;
-		setTimeout(() => { successAnim = false; successCount = 0; }, 800);
-		names = [''];
-
+		employees.add({ name: currentName, position, startTime, endTime });
+		name = '';
+		focusKey++;
 		return async ({ result, update }: { result: ActionResult, update: any }) => {
-			if (result.type !== 'success' && result.type !== 'redirect') {
-				// Rollback on error
-				employees.set(prev);
-			}
-			await update();
+			if (result.type !== 'success' && result.type !== 'redirect') employees.set(prev);
+			await update({ reset: false });
+			await tick();
+			focusKey++;
 		};
 	}
 
@@ -93,30 +96,24 @@
 		<!-- ── Entry Form ─────────────────────────────────── -->
 		<Card title="Ajouter un quart" class="form-card">
 			<form class="form" method="POST" action="?/add" use:enhance={handleEnhance}>
-				<!-- Name list -->
+				<!-- Name input -->
 				<div class="field">
-					<label class="label" for="emp-name-0">Employé{names.length > 1 ? 's' : ''}</label>
-					<div class="name-list">
-						{#each names as _, i}
-							<div class="name-row">
-								<span class="name-num">{i + 1}</span>
-								<div class="name-input">
-									<Input
-										id="emp-name-{i}"
-										name="names[]"
-										type="text"
-										placeholder="Nom de l'employé"
-										bind:value={names[i]}
-										autocomplete="off"
-									/>
-								</div>
-								{#if names.length > 1}
-									<button type="button" class="name-remove" onclick={() => removeName(i)} aria-label="Retirer">×</button>
-								{/if}
-							</div>
-						{/each}
+					<label class="label" for="emp-name">Employé</label>
+					<div class="name-input">
+						{#key focusKey}
+							<Input
+								id="emp-name"
+								name="name"
+								type="text"
+								placeholder="Nom de l'employé"
+								bind:value={name}
+								bind:ref={nameInput}
+								autocomplete="off"
+								required
+								autofocus
+							/>
+						{/key}
 					</div>
-					<button type="button" class="add-name-btn" onclick={addNameField}>+ Ajouter un employé</button>
 				</div>
 
 				<!-- Position -->
@@ -149,14 +146,9 @@
 
 				<Button 
 					id="add-employee-btn" 
-					success={successAnim} 
 					type="submit"
 				>
-					{#if successAnim}
-						{successCount > 1 ? `✓ ${successCount} ajoutés !` : '✓ Ajouté !'}
-					{:else}
-						{names.filter(n => n.trim()).length > 1 ? 'Ajouter les employés' : "Ajouter l'employé"}
-					{/if}
+					Ajouter l'employé
 				</Button>
 			</form>
 		</Card>
@@ -256,42 +248,6 @@
 	.main-grid { grid-template-columns: 1fr; }
 }
 
-/* ── Name list ──────────────────────────────────────────────────────── */
-.name-list { display: flex; flex-direction: column; gap: 6px; }
-.name-row {
-	display: flex; align-items: center; gap: 8px;
-}
-.name-num {
-	font-size: 11px; font-weight: 700;
-	color: var(--text-muted);
-	min-width: 16px; text-align: right;
-	flex-shrink: 0;
-}
-.name-input { flex: 1; }
-.name-remove {
-	font-size: 15px;
-	color: var(--text-muted);
-	padding: 4px 6px;
-	border-radius: var(--radius-sm);
-	transition: color var(--transition), background var(--transition);
-	flex-shrink: 0;
-	border: none;
-	background: transparent;
-	cursor: pointer;
-}
-.name-remove:hover { color: #dc2626; background: rgba(220,38,38,0.08); }
-.add-name-btn {
-	margin-top: 6px;
-	font-size: 12px; font-weight: 600;
-	color: var(--accent-primary);
-	padding: 4px 0;
-	text-align: left;
-	transition: opacity var(--transition);
-	background: transparent;
-	border: none;
-	cursor: pointer;
-}
-.add-name-btn:hover { opacity: 0.75; }
 
 /* ── Form ───────────────────────────────────────────────────────────── */
 .form { display: flex; flex-direction: column; gap: 16px; }
