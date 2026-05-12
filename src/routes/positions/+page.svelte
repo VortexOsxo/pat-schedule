@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { employees, addMinutes, settings } from '$lib/stores/schedule';
+	import { Button, Input, Select, Card, EmployeeCard } from '$lib';
 
 	const roles = [
 		{ id: 'bateau', name: 'Bateau', color: '#0e4f84' },
@@ -89,12 +90,13 @@
 	});
 
 	function getRotation(idx: number) {
-		const res = fullSchedule[idx];
-		if (!res) return { speech: [], pied2: [], bateau: [] };
-
 		const h = Math.floor(idx / 2);
 		const m = (idx % 2) * 30;
 		const time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+		const res = fullSchedule[idx];
+		if (!res) return { speech: [], pied2: [], bateau: [], time };
+
 		const isOnBreak = (emp: any) => emp.breakTime === time;
 
 		const findEmp = (id: string) => {
@@ -138,44 +140,46 @@
 <main class="main-content">
 	<div class="controls-bar">
 		<div class="range-inputs">
-			<div class="range-field">
-				<label for="start-h">Début</label>
-				<input id="start-h" type="number" min="0" max="23" 
-					value={$settings.positionsStartH} 
-					oninput={(e) => settings.update(s => ({ ...s, positionsStartH: +e.currentTarget.value }))}
-					class="range-input" />
-				<span>h</span>
-			</div>
-			<div class="range-field">
-				<label for="end-h">Fin</label>
-				<input id="end-h" type="number" min="0" max="23" 
-					value={$settings.positionsEndH} 
-					oninput={(e) => settings.update(s => ({ ...s, positionsEndH: +e.currentTarget.value }))}
-					class="range-input" />
-				<span>h</span>
-			</div>
+			<Input 
+				id="start-h" 
+				type="number" 
+				min="0" 
+				max="23" 
+				label="Début"
+				variant="range"
+				value={$settings.positionsStartH} 
+				oninput={(e) => settings.update(s => ({ ...s, positionsStartH: +e.currentTarget.value }))}
+			/>
+			<Input 
+				id="end-h" 
+				type="number" 
+				min="0" 
+				max="23" 
+				label="Fin"
+				variant="range"
+				value={$settings.positionsEndH} 
+				oninput={(e) => settings.update(s => ({ ...s, positionsEndH: +e.currentTarget.value }))}
+			/>
 		</div>
 
 		<div class="extra-controls">
-			<div class="control-field">
-				<label for="interval">Rotation</label>
-				<select id="interval" 
-					value={$settings.rotationInterval} 
-					onchange={(e) => settings.update(s => ({ ...s, rotationInterval: +e.currentTarget.value }))}
-					class="select-input">
-					<option value={0.5}>Chaque 30 minutes</option>
-					<option value={1}>Chaque heure</option>
-					<option value={2}>Chaque 2 heures</option>
-					<option value={3}>Chaque 3 heures</option>
-					<option value={4}>Chaque 4 heures</option>
-				</select>
-			</div>
-
-			<button class="btn-regen" onclick={() => settings.update(s => ({ ...s, rotationSeed: s.rotationSeed + 1 }))}>
-				<span>🔄</span> Regénérer
-			</button>
+			<Select 
+				id="interval" 
+				label="Rotation"
+				variant="compact"
+				value={$settings.rotationInterval} 
+				onchange={(e) => settings.update(s => ({ ...s, rotationInterval: +e.currentTarget.value }))}
+				options={[
+					{ value: 0.5, label: 'Chaque 30 minutes' },
+					{ value: 1, label: 'Chaque heure' },
+					{ value: 2, label: 'Chaque 2 heures' },
+					{ value: 3, label: 'Chaque 3 heures' },
+					{ value: 4, label: 'Chaque 4 heures' }
+				]}
+			/>
 		</div>
 	</div>
+
 
 	<div class="rotation-grid">
 		<div class="grid-header">
@@ -193,59 +197,68 @@
 					
 					<!-- Bateau Column -->
 					<div class="role-cell bateau-cell">
-						{#each res.bateau as emp}
-							{#if emp}
-								<div class="emp-tag" style="border-left-color: #0e4f84" class:is-on-break={emp.onBreak}>
-									<div class="emp-info">
-										<span class="emp-name">{emp.name}</span>
-									</div>
-								</div>
-							{/if}
-						{:else}
-							<span class="empty-label">—</span>
-						{/each}
-					</div>
-
-					<!-- 2 Pied Column -->
-					<div class="role-cell pied-cell">
-						{#each res.pied2 as emp}
-							{#if emp}
-								<div class="emp-tag" style="border-left-color: #0e8a8a" class:is-on-break={emp.onBreak}>
-									<div class="emp-info">
-										<span class="emp-name">{emp.name}</span>
-									</div>
-								</div>
-							{/if}
-						{:else}
-							<span class="empty-label">—</span>
-						{/each}
-					</div>
-
-					<!-- Speech Column -->
-					<div class="role-cell speech-cell">
-						{#each res.speech as emp}
-							{#if emp}
-								<div class="emp-tag" style="border-left-color: #6042b0" class:is-on-break={emp.onBreak}>
-									<div class="emp-info">
-										<span class="emp-name">{emp.name}</span>
-									</div>
-								</div>
-							{/if}
-						{:else}
-							<span class="empty-label">—</span>
-						{/each}
-					</div>
-				</div>
-			{/each}
-		</div>
+ 						{#each res.bateau as emp}
+ 							{#if emp}
+								<EmployeeCard 
+									variant="grid" 
+									name={emp.name} 
+									color="#0e4f84" 
+									onBreak={emp.onBreak} 
+								/>
+ 							{/if}
+ 						{:else}
+ 							<span class="empty-label">—</span>
+ 						{/each}
+ 					</div>
+ 
+ 					<!-- 2 Pied Column -->
+ 					<div class="role-cell pied-cell">
+ 						{#each res.pied2 as emp}
+ 							{#if emp}
+								<EmployeeCard 
+									variant="grid" 
+									name={emp.name} 
+									color="#0e8a8a" 
+									onBreak={emp.onBreak} 
+								/>
+ 							{/if}
+ 						{:else}
+ 							<span class="empty-label">—</span>
+ 						{/each}
+ 					</div>
+ 
+ 					<!-- Speech Column -->
+ 					<div class="role-cell speech-cell">
+ 						{#each res.speech as emp}
+ 							{#if emp}
+								<EmployeeCard 
+									variant="grid" 
+									name={emp.name} 
+									color="#6042b0" 
+									onBreak={emp.onBreak} 
+								/>
+ 							{/if}
+ 						{:else}
+ 							<span class="empty-label">—</span>
+ 						{/each}
+ 					</div>
+ 				</div>
+ 			{/each}
+ 		</div>
+ 	</div>
+ 
+	<div class="actions-bar">
+		<Button onclick={() => settings.update(s => ({ ...s, rotationSeed: s.rotationSeed + 1 }))}>
+			Regénérer l'horaire
+		</Button>
 	</div>
 
-	<div class="stats-section">
-		<h2 class="stats-title">Sommaire des positions (heures)</h2>
-		<div class="stats-grid">
-			{#each stats as s}
-				<div class="stats-card">
-					<div class="stats-name">{s.name}</div>
+
+ 	<div class="stats-section">
+ 		<h2 class="stats-title">Sommaire des positions (heures)</h2>
+ 		<div class="stats-grid">
+ 			{#each stats as s}
+				<Card variant="stats" title={s.name}>
 					<div class="stats-values">
 						<div class="stat-item">
 							<span class="stat-label">Speech</span>
@@ -260,10 +273,11 @@
 							<span class="stat-val">{s.total}h</span>
 						</div>
 					</div>
-				</div>
-			{/each}
-		</div>
-	</div>
+				</Card>
+ 			{/each}
+ 		</div>
+ 	</div>
+
 </main>
 
 <style>
@@ -287,63 +301,12 @@
 	}
 
 	.range-inputs { display: flex; gap: 20px; }
-	.range-field { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
-	.range-input {
-		width: 50px;
-		padding: 4px 8px;
-		border: 1.5px solid var(--border-subtle);
-		border-radius: 6px;
-		font-weight: 700;
-		color: var(--accent-primary);
-		text-align: center;
-	}
 
 	.extra-controls {
 		display: flex;
 		align-items: center;
 		gap: 24px;
 	}
-
-	.control-field {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		font-size: 13px;
-		font-weight: 600;
-		color: var(--text-secondary);
-	}
-
-	.select-input {
-		padding: 4px 12px;
-		border: 1.5px solid var(--border-subtle);
-		border-radius: 6px;
-		font-weight: 700;
-		color: var(--accent-primary);
-		background: #fff;
-		cursor: pointer;
-	}
-
-	.btn-regen {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 6px 16px;
-		background: var(--bg-elevated);
-		border: 1.5px solid var(--border-subtle);
-		border-radius: 8px;
-		font-size: 13px;
-		font-weight: 700;
-		color: var(--accent-primary);
-		transition: all 0.2s;
-	}
-	.btn-regen:hover {
-		background: #fff;
-		border-color: var(--accent-primary);
-		transform: translateY(-1px);
-		box-shadow: var(--shadow-sm);
-	}
-	.btn-regen:active { transform: translateY(0); }
-	.btn-regen span { font-size: 14px; }
 
 	.rotation-grid {
 		background: #fff;
@@ -377,24 +340,6 @@
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
 		gap: 16px;
-	}
-
-	.stats-card {
-		padding: 16px;
-		background: var(--bg-elevated);
-		border: 1px solid var(--border-subtle);
-		border-radius: 12px;
-		display: flex;
-		flex-direction: column;
-		gap: 12px;
-	}
-
-	.stats-name {
-		font-weight: 800;
-		font-size: 14px;
-		color: var(--text-primary);
-		border-bottom: 1.5px solid var(--border-subtle);
-		padding-bottom: 8px;
 	}
 
 	.stats-values {
@@ -500,28 +445,13 @@
 	}
 	.role-cell:last-child { border-right: none; }
 
-	.emp-tag {
-		background: #fff;
-		border: 1px solid var(--border-subtle);
-		border-left: 5px solid #94a3b8;
-		border-radius: 6px;
-		padding: 8px 12px;
-		display: flex;
-		align-items: center;
-		box-shadow: var(--shadow-sm);
-		width: 100%;
-		transition: all 0.2s;
-	}
-	.emp-info { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; }
-	.emp-name { font-size: 14px; font-weight: 700; color: var(--text-primary); }
-
-	.emp-tag.is-on-break { 
-		background: #f1f5f9;
-		border-color: #cbd5e1;
-		opacity: 0.7;
-	}
-
 	.empty-label { font-size: 14px; color: var(--text-muted); align-self: center; margin-top: 12px; }
+
+	.actions-bar {
+		display: flex;
+		justify-content: center;
+		margin-bottom: 40px;
+	}
 
 	@media (max-width: 800px) {
 		.controls-bar { flex-direction: column; gap: 16px; align-items: flex-start; padding: 16px; }
@@ -530,11 +460,9 @@
 		}
 		.role-header-cell { font-size: 10px; padding: 10px 4px; border-top-width: 3px; }
 		.time-col, .time-cell { width: 60px; font-size: 11px; padding: 8px 4px; }
-		.emp-name { font-size: 11px; }
-		.emp-tag { padding: 4px 6px; border-left-width: 3px; }
 		.role-cell { padding: 8px 4px; gap: 4px; }
 		.hour-row, .grid-header { width: 100%; }
-		.emp-info { gap: 4px; }
 	}
 </style>
+
 

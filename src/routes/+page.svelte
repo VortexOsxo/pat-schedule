@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { employees, POSITIONS, workedMinutes, fmtDuration, addMinutes } from '$lib/stores/schedule';
+	import { Card, Input, Select, Button, EmployeeCard, Dialog } from '$lib';
 
 
 	// ── Form state ───────────────────────────────────────────────
@@ -78,9 +79,7 @@
 
 	<main class="main-grid">
 		<!-- ── Entry Form ─────────────────────────────────── -->
-		<section class="card form-card" aria-label="Ajouter un quart">
-			<h2 class="card-title">Ajouter un quart</h2>
-
+		<Card title="Ajouter un quart" class="form-card">
 			<form class="form" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
 				<!-- Name list -->
 				<div class="field">
@@ -107,115 +106,102 @@
 				</div>
 
 				<!-- Position -->
-				<div class="field">
-					<label class="label" for="emp-position">Poste</label>
-					<select id="emp-position" class="input select" bind:value={position}>
-						<option value="" disabled selected>Choisir un poste…</option>
-						{#each POSITIONS as pos}
-							<option value={pos}>{pos}</option>
-						{/each}
-					</select>
-				</div>
+				<Select 
+					id="emp-position" 
+					label="Poste" 
+					bind:value={position}
+					options={[
+						{ value: '', label: 'Choisir un poste…' },
+						...POSITIONS.map(pos => ({ value: pos, label: pos }))
+					]}
+				/>
 
 				<!-- Times row -->
 				<div class="time-row">
-					<div class="field">
-						<label class="label" for="emp-start">Début</label>
-						<input id="emp-start" class="input time-input" type="text" placeholder="HH:MM" maxlength="5" bind:value={startTime} />
-					</div>
-					<div class="field">
-						<label class="label" for="emp-end">Fin</label>
-						<input id="emp-end" class="input time-input" type="text" placeholder="HH:MM" maxlength="5" bind:value={endTime} />
-					</div>
+					<Input id="emp-start" label="Début" variant="time" placeholder="HH:MM" maxlength={5} bind:value={startTime} />
+					<Input id="emp-end" label="Fin" variant="time" placeholder="HH:MM" maxlength={5} bind:value={endTime} />
 				</div>
 
 				{#if error}
 					<p class="error-msg" role="alert">{error}</p>
 				{/if}
 
-				<button id="add-employee-btn" class="btn-primary" class:success={successAnim} type="submit">
+				<Button 
+					id="add-employee-btn" 
+					success={successAnim} 
+					type="submit"
+				>
 					{#if successAnim}
 						{successCount > 1 ? `✓ ${successCount} ajoutés !` : '✓ Ajouté !'}
 					{:else}
 						{names.filter(n => n.trim()).length > 1 ? 'Ajouter les employés' : "Ajouter l'employé"}
 					{/if}
-				</button>
+				</Button>
 			</form>
-		</section>
+		</Card>
 
 		<!-- ── Employee List ──────────────────────────────── -->
-		<section class="card list-card" aria-label="Employés aujourd'hui">
-			<h2 class="card-title">Employés aujourd'hui</h2>
-
+		<Card title="Employés aujourd'hui" class="list-card">
 			{#if $employees.length === 0}
 				<div class="empty-state">
-
 					<p>Aucun employé ajouté pour l'instant.</p>
 					<p class="empty-hint">Utilisez le formulaire pour ajouter un premier quart.</p>
 				</div>
 			{:else}
 				<ul class="emp-list">
 					{#each $employees as emp (emp.id)}
-						<li class="emp-card" style="border-left-color:{posColor(emp.position)}">
-
-
-							<div class="emp-info">
-								<span class="emp-name">{emp.name}</span>
-								<span class="emp-pos" style="color:{posColor(emp.position)}">{emp.position}</span>
-								<div class="emp-spacer"></div>
-								<div class="emp-times">
-									<span class="time-chip">{emp.startTime} – {emp.endTime}</span>
-
-								</div>
-							</div>
-
-							<button
-								class="delete-btn"
-								title="Retirer {emp.name}"
-								onclick={() => requestDelete(emp.id)}
-								aria-label="Retirer {emp.name}"
-							>×</button>
+						<li>
+							<EmployeeCard 
+								name={emp.name} 
+								position={emp.position} 
+								startTime={emp.startTime} 
+								endTime={emp.endTime} 
+								color={posColor(emp.position)} 
+								onDelete={() => requestDelete(emp.id)} 
+							/>
 						</li>
 					{/each}
 				</ul>
 
 				{#if $employees.length > 0}
 					<div class="list-footer">
-						<button class="btn-ghost-danger" onclick={() => requestDelete('__all__')}>
+						<Button variant="ghost-danger" onclick={() => requestDelete('__all__')}>
 							Tout effacer
-						</button>
+						</Button>
 					</div>
 				{/if}
 			{/if}
-		</section>
+		</Card>
 	</main>
 
 
 <!-- Delete confirmation dialog -->
-{#if pendingDelete}
-	<button
-		class="overlay"
-		onclick={cancelDelete}
-		aria-label="Fermer"
-		type="button"
-	></button>
-	<div class="dialog" role="dialog" aria-modal="true" tabindex="-1">
-		<p class="dialog-msg">
-			{#if pendingDelete === '__all__'}
-				Retirer <strong>tous les employés</strong> de la liste d'aujourd'hui ?
-			{:else}
-				Retirer <strong>{$employees.find(e => e.id === pendingDelete)?.name}</strong> de la liste ?
-			{/if}
-		</p>
-		<div class="dialog-actions">
-			<button class="btn-ghost" onclick={cancelDelete}>Annuler</button>
-			<button class="btn-danger" onclick={() => {
-				if (pendingDelete === '__all__') { employees.clear(); pendingDelete = null; }
-				else confirmDelete();
-			}}>Retirer</button>
-		</div>
+<Dialog 
+	open={!!pendingDelete} 
+	variant="danger"
+	confirmText="Retirer"
+	onCancel={cancelDelete}
+	onConfirm={() => {
+		if (pendingDelete === '__all__') { employees.clear(); pendingDelete = null; }
+		else confirmDelete();
+	}}
+>
+	<p class="dialog-msg">
+		{#if pendingDelete === '__all__'}
+			Retirer <strong>tous les employés</strong> de la liste d'aujourd'hui ?
+		{:else}
+			Retirer <strong>{$employees.find(e => e.id === pendingDelete)?.name}</strong> de la liste ?
+		{/if}
+	</p>
+	<div class="dialog-actions">
+		<Button variant="ghost" onclick={cancelDelete}>Annuler</Button>
+		<Button variant="danger" onclick={() => {
+			if (pendingDelete === '__all__') { employees.clear(); pendingDelete = null; }
+			else confirmDelete();
+		}}>Retirer</Button>
 	</div>
-{/if}
+</Dialog>
+
 
 
 
@@ -233,22 +219,6 @@
 }
 @media (max-width: 820px) {
 	.main-grid { grid-template-columns: 1fr; }
-}
-
-/* ── Card ───────────────────────────────────────────────────────────── */
-.card {
-	background: var(--bg-surface);
-	border: 1px solid var(--border-subtle);
-	border-radius: var(--radius-lg);
-	padding: 28px;
-	box-shadow: var(--shadow-md);
-}
-.card-title {
-	font-size: 15px; font-weight: 600;
-	color: var(--text-primary);
-	margin-bottom: 24px;
-	padding-bottom: 16px;
-	border-bottom: 1px solid var(--border-subtle);
 }
 
 /* ── Name list ──────────────────────────────────────────────────────── */
@@ -270,6 +240,9 @@
 	border-radius: var(--radius-sm);
 	transition: color var(--transition), background var(--transition);
 	flex-shrink: 0;
+	border: none;
+	background: transparent;
+	cursor: pointer;
 }
 .name-remove:hover { color: #dc2626; background: rgba(220,38,38,0.08); }
 .add-name-btn {
@@ -279,6 +252,9 @@
 	padding: 4px 0;
 	text-align: left;
 	transition: opacity var(--transition);
+	background: transparent;
+	border: none;
+	cursor: pointer;
 }
 .add-name-btn:hover { opacity: 0.75; }
 
@@ -308,19 +284,13 @@
 	box-shadow: 0 0 0 3px var(--accent-glow);
 	background: #fff;
 }
-.select { appearance: none; cursor: pointer; background-color: var(--bg-elevated); }
-.select option { background: #fff; }
-
 
 .time-row {
 	display: grid;
-	grid-template-columns: 1fr 1fr 1fr;
+	grid-template-columns: 1fr 1fr;
 	gap: 12px;
 	align-items: end;
 }
-.time-input { text-align: center; font-variant-numeric: tabular-nums; }
-
-
 
 /* ── Error ──────────────────────────────────────────────────────────── */
 .error-msg {
@@ -332,53 +302,6 @@
 	padding: 10px 14px;
 }
 
-/* ── Buttons ─────────────────────────────────────────────────────────  */
-.btn-primary {
-	width: 100%;
-	padding: 12px;
-	border-radius: var(--radius-sm);
-	font-size: 14px; font-weight: 600;
-	background: var(--accent-grad);
-	color: #fff;
-	transition: opacity var(--transition), transform var(--transition), box-shadow var(--transition);
-	box-shadow: 0 4px 14px rgba(14, 79, 132, 0.25);
-	letter-spacing: 0.02em;
-}
-.btn-primary:hover { opacity: 0.9; box-shadow: var(--shadow-glow); transform: translateY(-1px); }
-.btn-primary:active { transform: translateY(0); }
-.btn-primary.success { background: linear-gradient(135deg, #059669, #047857); box-shadow: 0 4px 14px rgba(5,150,105,0.3); }
-
-.btn-ghost {
-	padding: 8px 20px;
-	border-radius: var(--radius-sm);
-	font-size: 13px; font-weight: 500;
-	color: var(--text-secondary);
-	border: 1.5px solid var(--border-subtle);
-	transition: background var(--transition), color var(--transition), border-color var(--transition);
-}
-.btn-ghost:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--border-accent); }
-
-.btn-ghost-danger {
-	padding: 8px 16px;
-	border-radius: var(--radius-sm);
-	font-size: 12px; font-weight: 500;
-	color: var(--text-muted);
-	border: 1px solid transparent;
-	transition: color var(--transition), border-color var(--transition);
-}
-.btn-ghost-danger:hover { color: #dc2626; border-color: rgba(220, 38, 38, 0.3); }
-
-.btn-danger {
-	padding: 8px 20px;
-	border-radius: var(--radius-sm);
-	font-size: 13px; font-weight: 600;
-	background: rgba(220, 38, 38, 0.1);
-	color: #b91c1c;
-	border: 1px solid rgba(220, 38, 38, 0.25);
-	transition: background var(--transition);
-}
-.btn-danger:hover { background: rgba(220, 38, 38, 0.18); }
-
 /* ── Employee list ──────────────────────────────────────────────────── */
 .empty-state {
 	text-align: center;
@@ -389,66 +312,6 @@
 
 .emp-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
 
-.emp-card {
-	display: flex; align-items: center; gap: 8px;
-	background: var(--bg-elevated);
-	border: 1.5px solid var(--border-subtle);
-	border-left: 4px solid transparent;
-	border-radius: var(--radius-md);
-	padding: 6px 12px;
-	transition: border-color var(--transition), box-shadow var(--transition);
-}
-.emp-card:hover {
-	border-color: var(--border-accent);
-	box-shadow: 0 4px 16px rgba(14, 79, 132, 0.10);
-}
-
-
-
-.emp-info { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.emp-name { font-weight: 600; font-size: 13.5px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
-.emp-pos {
-	font-size: 10.5px; font-weight: 700;
-	letter-spacing: 0.04em;
-	white-space: nowrap;
-}
-.emp-spacer { flex: 1; }
-
-@media (max-width: 600px) {
-	.emp-name { max-width: 120px; }
-	.emp-spacer { display: none; }
-	.emp-info { gap: 6px; }
-}
-
-.emp-times { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.time-chip {
-	font-size: 10px;
-	color: var(--text-secondary);
-	background: #f1f5f9;
-	border: 1px solid #e2e8f0;
-	padding: 2px 7px;
-	border-radius: 999px;
-	font-variant-numeric: tabular-nums;
-	white-space: nowrap;
-}
-
-
-
-
-
-
-.delete-btn {
-	opacity: 0;
-	font-size: 15px;
-	padding: 5px 8px;
-	border-radius: var(--radius-sm);
-	color: var(--text-muted);
-	transition: opacity var(--transition), color var(--transition), background var(--transition);
-	flex-shrink: 0;
-}
-.emp-card:hover .delete-btn { opacity: 1; }
-.delete-btn:hover { color: #dc2626; background: rgba(220, 38, 38, 0.08); }
-
 .list-footer {
 	margin-top: 16px;
 	padding-top: 16px;
@@ -457,34 +320,8 @@
 	justify-content: flex-end;
 }
 
-/* ── Dialog / Overlay ───────────────────────────────────────────────── */
-.overlay {
-	position: fixed; inset: 0; z-index: 100;
-	background: rgba(15, 23, 42, 0.4);
-	backdrop-filter: blur(4px);
-	border: none;
-	width: 100%; height: 100%;
-	cursor: default;
-}
-.dialog {
-	position: fixed;
-	top: 50%; left: 50%;
-	transform: translate(-50%, -50%);
-	z-index: 101;
-	background: var(--bg-surface);
-	border: 1px solid var(--border-subtle);
-	border-radius: var(--radius-lg);
-	padding: 28px;
-	max-width: 380px; width: 90%;
-	box-shadow: var(--shadow-lg);
-	animation: pop 0.2s cubic-bezier(0.34,1.56,0.64,1);
-}
 .dialog-msg { font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 20px; }
 .dialog-msg strong { color: var(--text-primary); }
 .dialog-actions { display: flex; gap: 12px; justify-content: flex-end; }
-
-@keyframes pop {
-	from { transform: translate(-50%, -50%) scale(0.92); opacity: 0; }
-	to   { transform: translate(-50%, -50%) scale(1);    opacity: 1; }
-}
 </style>
+

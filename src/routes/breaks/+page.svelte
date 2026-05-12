@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { employees, addMinutes, settings } from '$lib/stores/schedule';
+	import { Input, EmployeeCard } from '$lib';
 
 	const slots = $derived.by(() => {
 		const s = [];
@@ -105,22 +106,26 @@
 <main class="main-content">
 	<div class="controls-bar">
 		<div class="range-inputs">
-			<div class="range-field">
-				<label for="start-h">Début</label>
-				<input id="start-h" type="number" min="0" max="23" 
-					value={$settings.breaksStartH} 
-					oninput={(e) => settings.update(s => ({ ...s, breaksStartH: +e.currentTarget.value }))}
-					class="range-input" />
-				<span>h</span>
-			</div>
-			<div class="range-field">
-				<label for="end-h">Fin</label>
-				<input id="end-h" type="number" min="0" max="23" 
-					value={$settings.breaksEndH} 
-					oninput={(e) => settings.update(s => ({ ...s, breaksEndH: +e.currentTarget.value }))}
-					class="range-input" />
-				<span>h</span>
-			</div>
+			<Input 
+				id="start-h" 
+				type="number" 
+				min="0" 
+				max="23" 
+				label="Début"
+				variant="range"
+				value={$settings.breaksStartH} 
+				oninput={(e) => settings.update(s => ({ ...s, breaksStartH: +e.currentTarget.value }))}
+			/>
+			<Input 
+				id="end-h" 
+				type="number" 
+				min="0" 
+				max="23" 
+				label="Fin"
+				variant="range"
+				value={$settings.breaksEndH} 
+				oninput={(e) => settings.update(s => ({ ...s, breaksEndH: +e.currentTarget.value }))}
+			/>
 		</div>
 	</div>
 
@@ -129,23 +134,17 @@
 			<h3 class="section-title">En attente de pause ({unassigned.length})</h3>
 			<div class="break-tags unassigned-tags">
 				{#each unassigned as emp}
-					<div 
-						class="break-tag" 
-						style="border-left-color: {posColors[emp.position] || '#94a3b8'}"
+					<EmployeeCard 
+						variant="break" 
+						name={emp.name} 
+						color={posColors[emp.position] || '#94a3b8'} 
 						draggable="true"
-						ondragstart={(e) => handleDragStart(e, emp.id)}
+						isDragging={draggedId === emp.id}
+						ondragstart={(e: DragEvent) => handleDragStart(e, emp.id)}
 						ontouchstart={() => handleTouchStart(emp.id)}
 						ontouchmove={handleTouchMove}
 						ontouchend={handleTouchEnd}
-						class:is-dragging={draggedId === emp.id}
-						role="button"
-						tabindex="0"
-						aria-label="Déplacer {emp.name}"
-					>
-						<div class="break-tag-main">
-							<span class="tag-name">{emp.name}</span>
-						</div>
-					</div>
+					/>
 				{/each}
 			</div>
 		</div>
@@ -172,24 +171,17 @@
 					{:else}
 						<div class="break-tags">
 							{#each onBreak as emp}
-								<div 
-									class="break-tag" 
-									style="border-left-color: {posColors[emp.position] || '#94a3b8'}"
+								<EmployeeCard 
+									variant="break" 
+									name={emp.name} 
+									color={posColors[emp.position] || '#94a3b8'} 
 									draggable="true"
-									ondragstart={(e) => handleDragStart(e, emp.id)}
+									isDragging={draggedId === emp.id}
+									ondragstart={(e: DragEvent) => handleDragStart(e, emp.id)}
 									ontouchstart={() => handleTouchStart(emp.id)}
 									ontouchmove={handleTouchMove}
 									ontouchend={handleTouchEnd}
-									class:is-dragging={draggedId === emp.id}
-									role="button"
-									tabindex="0"
-									aria-label="Déplacer {emp.name}"
-								>
-									<div class="break-tag-main">
-										<span class="tag-name">{emp.name}</span>
-									</div>
-
-								</div>
+								/>
 							{/each}
 						</div>
 					{/if}
@@ -198,6 +190,7 @@
 		{/each}
 	</div>
 </main>
+
 
 <style>
 	.main-content {
@@ -237,17 +230,6 @@
 	}
 
 	.range-inputs { display: flex; gap: 20px; }
-	.range-field { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
-	.range-input {
-		width: 50px;
-		padding: 4px 8px;
-		border: 1.5px solid var(--border-subtle);
-		border-radius: 6px;
-		font-weight: 700;
-		color: var(--accent-primary);
-		text-align: center;
-	}
-	.range-input:focus { border-color: var(--accent-primary); outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
 	
 	.break-grid {
 		display: flex;
@@ -295,36 +277,8 @@
 		width: 100%;
 	}
 
-	.break-tag {
-		background: #fff;
-		border: 1px solid var(--border-subtle);
-		border-left: 4px solid #94a3b8;
-		border-radius: 6px;
-		padding: 6px 12px;
-		display: flex;
-		align-items: center;
-		gap: 12px;
-		box-shadow: var(--shadow-sm);
-		width: fit-content;
-		min-width: 160px;
-		max-width: 240px;
-		flex-shrink: 0;
-		cursor: grab;
-		transition: transform 0.1s, opacity 0.1s;
-		touch-action: none;
-	}
-	.break-tag:active { cursor: grabbing; }
-	.break-tag.is-dragging { 
-		opacity: 0.4; 
-		transform: scale(0.95); 
-		touch-action: none;
-	}
-
-	.break-tag-main { display: flex; flex-direction: column; flex: 1; }
-	.tag-name { font-size: 14px; font-weight: 700; color: var(--text-primary); }
-
 	@media (max-width: 600px) {
-		.break-tag { min-width: 0; flex: 1; }
 		.slot-time { width: 60px; font-size: 11px; }
 	}
 </style>
+
