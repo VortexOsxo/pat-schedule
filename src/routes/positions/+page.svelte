@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { employees, addMinutes, settings } from '$lib/stores/schedule';
 	import { get } from 'svelte/store';
-	import { Button, Input, Select, Card, EmployeeCard } from '$lib';
+	import { Button, Input, Select, Card, EmployeeCard, Dropdown, DropdownItem } from '$lib';
 	import { invalidateAll } from '$app/navigation';
 
 	const roles = [
@@ -165,43 +165,59 @@
 <main class="main-content">
 	<div class="controls-bar">
 		<div class="range-inputs">
-			<Input 
-				id="start-h" 
-				type="number" 
-				min="0" 
-				max="23" 
-				label="Début"
-				variant="range"
-				value={$settings.positionsStartH} 
-				oninput={(e) => saveSettings({ positionsStartH: +e.currentTarget.value })}
-			/>
-			<Input 
-				id="end-h" 
-				type="number" 
-				min="0" 
-				max="23" 
-				label="Fin"
-				variant="range"
-				value={$settings.positionsEndH} 
-				oninput={(e) => saveSettings({ positionsEndH: +e.currentTarget.value })}
-			/>
+			<div class="field">
+				<label class="label" for="pos-start">Début</label>
+				<Dropdown id="pos-start" label="{$settings.positionsStartH}:00" class="h-dropdown">
+					<div class="hour-grid">
+						{#each Array.from({ length: 24 }, (_, i) => i) as h}
+							<DropdownItem onclick={() => saveSettings({ positionsStartH: h })}>
+								{h}:00
+							</DropdownItem>
+						{/each}
+					</div>
+				</Dropdown>
+			</div>
+			<div class="field">
+				<label class="label" for="pos-end">Fin</label>
+				<Dropdown id="pos-end" label="{$settings.positionsEndH}:00" class="h-dropdown">
+					<div class="hour-grid">
+						{#each Array.from({ length: 24 }, (_, i) => i) as h}
+							<DropdownItem onclick={() => saveSettings({ positionsEndH: h })}>
+								{h}:00
+							</DropdownItem>
+						{/each}
+					</div>
+				</Dropdown>
+			</div>
 		</div>
 
 		<div class="extra-controls">
-			<Select 
-				id="interval" 
-				label="Rotation"
-				variant="compact"
-				value={$settings.rotationInterval} 
-				onchange={(e) => saveSettings({ rotationInterval: +e.currentTarget.value })}
-				options={[
-					{ value: 0.5, label: 'Chaque 30 minutes' },
-					{ value: 1, label: 'Chaque heure' },
-					{ value: 2, label: 'Chaque 2 heures' },
-					{ value: 3, label: 'Chaque 3 heures' },
-					{ value: 4, label: 'Chaque 4 heures' }
-				]}
-			/>
+			<div class="field">
+				<label class="label" for="rot-interval">Rotation</label>
+				<Dropdown 
+					id="rot-interval"
+					label={[
+						{ value: 0.5, label: 'Chaque 30 minutes' },
+						{ value: 1, label: 'Chaque heure' },
+						{ value: 2, label: 'Chaque 2 heures' },
+						{ value: 3, label: 'Chaque 3 heures' },
+						{ value: 4, label: 'Chaque 4 heures' }
+					].find(o => o.value === $settings.rotationInterval)?.label || 'Intervalle'}
+					align="right"
+				>
+					{#each [
+						{ value: 0.5, label: 'Chaque 30 minutes' },
+						{ value: 1, label: 'Chaque heure' },
+						{ value: 2, label: 'Chaque 2 heures' },
+						{ value: 3, label: 'Chaque 3 heures' },
+						{ value: 4, label: 'Chaque 4 heures' }
+					] as opt}
+						<DropdownItem onclick={() => saveSettings({ rotationInterval: opt.value })}>
+							{opt.label}
+						</DropdownItem>
+					{/each}
+				</Dropdown>
+			</div>
 		</div>
 	</div>
 
@@ -326,6 +342,26 @@
 	}
 
 	.range-inputs { display: flex; gap: 20px; }
+	
+	.field { display: flex; flex-direction: column; gap: 6px; }
+	.label {
+		font-size: 11px;
+		font-weight: 700;
+		color: var(--text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	:global(.h-dropdown) { min-width: 100px; }
+
+	.hour-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 4px;
+		padding: 4px;
+		max-height: 200px;
+		overflow-y: auto;
+	}
 
 	.extra-controls {
 		display: flex;

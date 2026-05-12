@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { employees, POSITIONS, workedMinutes, fmtDuration, addMinutes } from '$lib/stores/schedule';
 	import { get } from 'svelte/store';
-	import { Card, Input, Select, Button, EmployeeCard, Dialog } from '$lib';
+	import { Card, Input, Select, Button, EmployeeCard, Dialog, Dropdown, DropdownItem } from '$lib';
 	import { enhance } from '$app/forms';
 	import type { ActionResult } from '@sveltejs/kit';
 
@@ -119,21 +119,60 @@
 				</div>
 
 				<!-- Position -->
-				<Select 
-					id="emp-position" 
-					name="position"
-					label="Poste" 
-					bind:value={position}
-					options={[
-						{ value: '', label: 'Choisir un poste…' },
-						...POSITIONS.map(pos => ({ value: pos, label: pos }))
-					]}
-				/>
+				<div class="field">
+					<label class="label" for="emp-position">Poste</label>
+					<input type="hidden" name="position" value={position} />
+					<Dropdown 
+						id="emp-position"
+						label={position || 'Choisir un poste…'} 
+						class="w-full"
+						triggerClass="w-full"
+					>
+						{#each POSITIONS as pos}
+							<DropdownItem onclick={() => position = pos}>
+								{pos}
+							</DropdownItem>
+						{/each}
+					</Dropdown>
+				</div>
 
 				<!-- Times row -->
 				<div class="time-row">
-					<Input id="emp-start" name="startTime" label="Début" variant="time" placeholder="HH:MM" maxlength={5} bind:value={startTime} />
-					<Input id="emp-end" name="endTime" label="Fin" variant="time" placeholder="HH:MM" maxlength={5} bind:value={endTime} />
+					<div class="field">
+						<label class="label" for="emp-start">Début</label>
+						<input type="hidden" name="startTime" value={startTime} />
+						<Dropdown id="emp-start" label={startTime} triggerClass="time-trigger">
+							<div class="time-grid">
+								{#each Array.from({ length: 29 }, (_, i) => {
+									const h = Math.floor(i / 2) + 8;
+									const m = (i % 2) * 30;
+									return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+								}) as time}
+									<DropdownItem onclick={() => startTime = time} class="compact-item">
+										{time}
+									</DropdownItem>
+								{/each}
+							</div>
+						</Dropdown>
+					</div>
+
+					<div class="field">
+						<label class="label" for="emp-end">Fin</label>
+						<input type="hidden" name="endTime" value={endTime} />
+						<Dropdown id="emp-end" label={endTime} triggerClass="time-trigger">
+							<div class="time-grid">
+								{#each Array.from({ length: 29 }, (_, i) => {
+									const h = Math.floor(i / 2) + 8;
+									const m = (i % 2) * 30;
+									return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+								}) as time}
+									<DropdownItem onclick={() => endTime = time} class="compact-item">
+										{time}
+									</DropdownItem>
+								{/each}
+							</div>
+						</Dropdown>
+					</div>
 				</div>
 
 				{#if error}
@@ -318,6 +357,24 @@
 	grid-template-columns: 1fr 1fr;
 	gap: 12px;
 	align-items: end;
+}
+
+:global(.w-full) { width: 100% !important; }
+:global(.time-trigger) { min-width: 0 !important; width: 100%; }
+
+.time-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 4px;
+	padding: 4px;
+	max-height: 240px;
+	overflow-y: auto;
+}
+
+:global(.compact-item) {
+	padding: 6px 8px !important;
+	font-size: 13px !important;
+	justify-content: center !important;
 }
 
 /* ── Error ──────────────────────────────────────────────────────────── */

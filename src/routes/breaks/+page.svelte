@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { employees, addMinutes, settings } from '$lib/stores/schedule';
 	import { get } from 'svelte/store';
-	import { Input, EmployeeCard } from '$lib';
+	import { Input, EmployeeCard, Dropdown, DropdownItem } from '$lib';
 	import { deserialize } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 
@@ -127,10 +127,23 @@
 		"Chef d'équipe": '#6042b0',
 	};
 	async function saveSettings(patch: any) {
+		const prev = get(settings);
+		
+		// Optimistic Update
+		settings.update(s => ({ ...s, ...patch }));
+
 		const formData = new FormData();
 		formData.append('patch', JSON.stringify(patch));
-		await fetch('/?/updateSettings', { method: 'POST', body: formData });
-		await invalidateAll();
+		
+		try {
+			const response = await fetch('/?/updateSettings', { method: 'POST', body: formData });
+			if (response.status >= 400) {
+				settings.set(prev);
+			}
+			await invalidateAll();
+		} catch {
+			settings.set(prev);
+		}
 	}
 </script>
 
@@ -141,26 +154,30 @@
 <main class="main-content">
 	<div class="controls-bar">
 		<div class="range-inputs">
-			<Input 
-				id="start-h" 
-				type="number" 
-				min="0" 
-				max="23" 
-				label="Début"
-				variant="range"
-				value={$settings.breaksStartH} 
-				oninput={(e) => saveSettings({ breaksStartH: +e.currentTarget.value })}
-			/>
-			<Input 
-				id="end-h" 
-				type="number" 
-				min="0" 
-				max="23" 
-				label="Fin"
-				variant="range"
-				value={$settings.breaksEndH} 
-				oninput={(e) => saveSettings({ breaksEndH: +e.currentTarget.value })}
-			/>
+			<div class="field">
+				<label class="label" for="breaks-start">Début</label>
+				<Dropdown id="breaks-start" label="{$settings.breaksStartH}:00" class="h-dropdown">
+					<div class="hour-grid">
+						{#each Array.from({ length: 24 }, (_, i) => i) as h}
+							<DropdownItem onclick={() => saveSettings({ breaksStartH: h })}>
+								{h}:00
+							</DropdownItem>
+						{/each}
+					</div>
+				</Dropdown>
+			</div>
+			<div class="field">
+				<label class="label" for="breaks-end">Fin</label>
+				<Dropdown id="breaks-end" label="{$settings.breaksEndH}:00" class="h-dropdown">
+					<div class="hour-grid">
+						{#each Array.from({ length: 24 }, (_, i) => i) as h}
+							<DropdownItem onclick={() => saveSettings({ breaksEndH: h })}>
+								{h}:00
+							</DropdownItem>
+						{/each}
+					</div>
+				</Dropdown>
+			</div>
 		</div>
 	</div>
 
@@ -265,6 +282,26 @@
 	}
 
 	.range-inputs { display: flex; gap: 20px; }
+	
+	.field { display: flex; flex-direction: column; gap: 6px; }
+	.label {
+		font-size: 11px;
+		font-weight: 700;
+		color: var(--text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	:global(.h-dropdown) { min-width: 100px; }
+
+	.hour-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 4px;
+		padding: 4px;
+		max-height: 200px;
+		overflow-y: auto;
+	}
 	
 	.break-grid {
 		display: flex;

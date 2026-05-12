@@ -2,6 +2,7 @@
 	import '../app.css';
 	import { page } from '$app/state';
 	import { employees, settings } from '$lib/stores/schedule';
+	import { Dropdown, DropdownItem } from '$lib';
 
 	let { data, children } = $props();
 
@@ -31,7 +32,6 @@
 				<a href="/breaks" class="nav-link" class:active={page.url.pathname === '/breaks'}>Pauses</a>
 				<a href="/positions" class="nav-link" class:active={page.url.pathname === '/positions'}>Postes</a>
 			</nav>
-
 		</div>
 	</header>
 
