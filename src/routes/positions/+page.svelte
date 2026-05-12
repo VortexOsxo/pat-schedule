@@ -165,30 +165,26 @@
 <main class="main-content">
 	<div class="controls-bar">
 		<div class="range-inputs">
-			<div class="field">
-				<label class="label" for="pos-start">Début</label>
-				<Dropdown id="pos-start" label="{$settings.positionsStartH}:00" class="h-dropdown">
-					<div class="hour-grid">
-						{#each Array.from({ length: 24 }, (_, i) => i) as h}
-							<DropdownItem onclick={() => saveSettings({ positionsStartH: h })}>
-								{h}:00
-							</DropdownItem>
-						{/each}
-					</div>
-				</Dropdown>
-			</div>
-			<div class="field">
-				<label class="label" for="pos-end">Fin</label>
-				<Dropdown id="pos-end" label="{$settings.positionsEndH}:00" class="h-dropdown">
-					<div class="hour-grid">
-						{#each Array.from({ length: 24 }, (_, i) => i) as h}
-							<DropdownItem onclick={() => saveSettings({ positionsEndH: h })}>
-								{h}:00
-							</DropdownItem>
-						{/each}
-					</div>
-				</Dropdown>
-			</div>
+			<Input 
+				id="pos-start" 
+				type="number" 
+				min="0" 
+				max="23" 
+				label="Début"
+				variant="range"
+				value={$settings.positionsStartH} 
+				oninput={(e) => saveSettings({ positionsStartH: +e.currentTarget.value })}
+			/>
+			<Input 
+				id="pos-end" 
+				type="number" 
+				min="0" 
+				max="23" 
+				label="Fin"
+				variant="range"
+				value={$settings.positionsEndH} 
+				oninput={(e) => saveSettings({ positionsEndH: +e.currentTarget.value })}
+			/>
 		</div>
 
 		<div class="extra-controls">
@@ -342,26 +338,6 @@
 	}
 
 	.range-inputs { display: flex; gap: 20px; }
-	
-	.field { display: flex; flex-direction: column; gap: 6px; }
-	.label {
-		font-size: 11px;
-		font-weight: 700;
-		color: var(--text-muted);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	:global(.h-dropdown) { min-width: 100px; }
-
-	.hour-grid {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 4px;
-		padding: 4px;
-		max-height: 200px;
-		overflow-y: auto;
-	}
 
 	.extra-controls {
 		display: flex;

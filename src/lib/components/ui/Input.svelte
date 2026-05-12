@@ -19,6 +19,33 @@
 		value = $bindable(),
 		...rest 
 	}: Props = $props();
+
+	function handleBlur(e: FocusEvent) {
+		if (variant === 'time' && typeof value === 'string') {
+			let val = value.trim();
+			if (!val) return;
+
+			// Smart format: 17 -> 17:00
+			if (/^\d{1,2}$/.test(val)) {
+				let h = parseInt(val);
+				if (h >= 0 && h <= 23) {
+					value = `${h.toString().padStart(2, '0')}:00`;
+				}
+			}
+			// Smart format: 1730 -> 17:30
+			else if (/^\d{3,4}$/.test(val)) {
+				let h = parseInt(val.slice(0, val.length - 2));
+				let m = parseInt(val.slice(val.length - 2));
+				if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+					value = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+				}
+			}
+		}
+		// Call original onblur if provided
+		if (rest.onblur) {
+			(rest.onblur as any)(e);
+		}
+	}
 </script>
 
 
@@ -31,6 +58,7 @@
 		<input 
 			class="input {variant} {className}" 
 			bind:value={value}
+			onblur={handleBlur}
 			{...rest}
 		/>
 
