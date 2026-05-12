@@ -112,24 +112,6 @@
 	<meta name="description" content="Outil superviseur pour assigner les quarts de travail et les pauses des employés d'été." />
 </svelte:head>
 
-<div class="app">
-	<!-- Header -->
-	<header class="app-header">
-		<div class="header-inner">
-			<div class="brand">
-
-				<div>
-					<h1 class="brand-title">Planificateur de quarts</h1>
-					<p class="brand-sub">Voiles en Voiles — Vue superviseur</p>
-				</div>
-			</div>
-			<div class="header-stat">
-				<span class="stat-num">{$employees.length}</span>
-				<span class="stat-label">employé{$employees.length !== 1 ? 's' : ''}</span>
-			</div>
-		</div>
-	</header>
-
 	<main class="main-grid">
 		<!-- ── Entry Form ─────────────────────────────────── -->
 		<section class="card form-card" aria-label="Ajouter un quart">
@@ -266,7 +248,7 @@
 			{/if}
 		</section>
 	</main>
-</div>
+
 
 <!-- Delete confirmation dialog -->
 {#if pendingDelete}
@@ -297,47 +279,6 @@
 
 
 <style>
-/* ── Layout ─────────────────────────────────────────────────────────── */
-.app {
-	min-height: 100vh;
-	display: flex;
-	flex-direction: column;
-	background: var(--bg-base);
-}
-
-/* ── Header ─────────────────────────────────────────────────────────── */
-.app-header {
-	background: var(--bg-glass);
-	backdrop-filter: blur(20px);
-	border-bottom: 1px solid var(--border-subtle);
-	box-shadow: var(--shadow-sm);
-	position: sticky; top: 0; z-index: 50;
-}
-.header-inner {
-	max-width: 1100px;
-	margin: 0 auto;
-	padding: 16px 24px;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-}
-.brand { display: flex; align-items: center; gap: 14px; }
-.brand-title {
-	font-size: 18px; font-weight: 700;
-	background: var(--accent-grad);
-	-webkit-background-clip: text; -webkit-text-fill-color: transparent;
-	background-clip: text;
-}
-.brand-sub { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
-.header-stat { text-align: right; }
-.stat-num {
-	display: block;
-	font-size: 28px; font-weight: 700;
-	color: var(--accent-primary);
-	line-height: 1;
-}
-.stat-label { font-size: 11px; color: var(--text-muted); }
-
 /* ── Grid ───────────────────────────────────────────────────────────── */
 .main-grid {
 	max-width: 1100px;
