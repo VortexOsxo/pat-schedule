@@ -54,7 +54,7 @@
 	}
 
 	.select {
-		background: var(--bg-elevated);
+		background: #fff;
 		border: 1.5px solid var(--border-subtle);
 		border-radius: var(--radius-sm);
 		color: var(--text-primary);

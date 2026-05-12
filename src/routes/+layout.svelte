@@ -48,7 +48,6 @@
 
 	.app-header {
 		background: var(--bg-glass);
-		backdrop-filter: blur(20px);
 		border-bottom: 1px solid var(--border-subtle);
 		box-shadow: var(--shadow-sm);
 		position: sticky; top: 0; z-index: 100;

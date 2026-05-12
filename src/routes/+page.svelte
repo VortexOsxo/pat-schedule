@@ -100,15 +100,16 @@
 						{#each names as _, i}
 							<div class="name-row">
 								<span class="name-num">{i + 1}</span>
-								<input
-									id="emp-name-{i}"
-									name="names[]"
-									class="input name-input"
-									type="text"
-									placeholder="Nom de l'employé"
-									bind:value={names[i]}
-									autocomplete="off"
-								/>
+								<div class="name-input">
+									<Input
+										id="emp-name-{i}"
+										name="names[]"
+										type="text"
+										placeholder="Nom de l'employé"
+										bind:value={names[i]}
+										autocomplete="off"
+									/>
+								</div>
 								{#if names.length > 1}
 									<button type="button" class="name-remove" onclick={() => removeName(i)} aria-label="Retirer">×</button>
 								{/if}
@@ -301,24 +302,6 @@
 	letter-spacing: 0.05em;
 	text-transform: uppercase;
 }
-.input {
-	background: var(--bg-elevated);
-	border: 1.5px solid var(--border-subtle);
-	border-radius: var(--radius-sm);
-	color: var(--text-primary);
-	padding: 10px 14px;
-	font-size: 14px;
-	transition: border-color var(--transition), box-shadow var(--transition);
-	outline: none;
-	width: 100%;
-}
-.input::placeholder { color: var(--text-muted); }
-.input:focus {
-	border-color: var(--accent-primary);
-	box-shadow: 0 0 0 3px var(--accent-glow);
-	background: #fff;
-}
-
 .time-row {
 	display: grid;
 	grid-template-columns: 1fr 1fr;

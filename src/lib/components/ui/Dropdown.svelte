@@ -133,8 +133,6 @@
 		z-index: 50;
 		min-width: 200px;
 		background: var(--bg-glass);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
 		border: 1.5px solid var(--border-subtle);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-lg);
