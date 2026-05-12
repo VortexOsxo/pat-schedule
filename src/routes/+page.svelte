@@ -93,12 +93,17 @@
 
 	// Position badge colors
 	const posColors: Record<string, string> = {
-		Patrouilleur: '#6366f1',
-		Sauveteur: '#22d3ee',
-		"Chef d'équipe": '#f59e0b',
+		Patrouilleur: '#fde047',
+		Assistant: '#1d4ed8',
+		Sauveteur: '#16a34a',
+		"Chef d'équipe": '#6042b0',
 	};
 	function posColor(pos: string): string {
 		return posColors[pos] ?? '#94a3b8';
+	}
+	// Ensure readable text on each background
+	function posTextColor(pos: string): string {
+		return pos === 'Patrouilleur' ? '#78350f' : '#ffffff';
 	}
 
 	// Svelte action: focus element on mount
@@ -138,12 +143,13 @@
 			<form class="form" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
 				<!-- Name list -->
 				<div class="field">
-					<label class="label">Employé{names.length > 1 ? 's' : ''}</label>
+					<label class="label" for="emp-name-0">Employé{names.length > 1 ? 's' : ''}</label>
 					<div class="name-list">
 						{#each names as _, i}
 							<div class="name-row">
 								<span class="name-num">{i + 1}</span>
 								<input
+									id="emp-name-{i}"
 									class="input name-input"
 									type="text"
 									placeholder="Nom de l'employé"
@@ -186,20 +192,6 @@
 					</div>
 				</div>
 
-				<!-- Duration preview -->
-				{#if startTime && endTime}
-					{@const mins = workedMinutes(startTime, endTime)}
-					<div class="duration-preview" class:invalid={mins <= 0}>
-						{#if mins > 0}
-							Temps travaillé : <strong>{fmtDuration(mins)}</strong>
-							<span class="duration-sep">•</span>
-							{startTime} → {endTime}, pause à {breakTime}
-						{:else}
-							Plage horaire invalide
-						{/if}
-					</div>
-				{/if}
-
 				{#if error}
 					<p class="error-msg" role="alert">{error}</p>
 				{/if}
@@ -227,17 +219,15 @@
 			{:else}
 				<ul class="emp-list">
 					{#each $employees as emp (emp.id)}
-						<li class="emp-card">
-							<div class="emp-avatar" style="background: {posColor(emp.position)}22; border-color: {posColor(emp.position)}55;">
+						<li class="emp-card" style="border-left-color:{posColor(emp.position)}">
+							<div class="emp-avatar" style="background:{posColor(emp.position)}; color:{posTextColor(emp.position)};">
 								<span class="emp-initials">{emp.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()}</span>
 							</div>
 
 							<div class="emp-info">
 								<div class="emp-name-row">
 									<span class="emp-name">{emp.name}</span>
-									<span class="emp-badge" style="background:{posColor(emp.position)}22; color:{posColor(emp.position)}; border-color:{posColor(emp.position)}44;">
-										{emp.position}
-									</span>
+									<span class="emp-pos" style="color:{posColor(emp.position)}">{emp.position}</span>
 								</div>
 								<div class="emp-times">
 									<span class="time-chip">{emp.startTime} – {emp.endTime}</span>
@@ -446,7 +436,7 @@
 }
 .select { appearance: none; cursor: pointer; background-color: var(--bg-elevated); }
 .select option { background: #fff; }
-.bulk-textarea { resize: vertical; line-height: 1.6; min-height: 90px; }
+
 
 .time-row {
 	display: grid;
@@ -456,23 +446,7 @@
 }
 .time-input { text-align: center; font-variant-numeric: tabular-nums; }
 
-/* ── Duration preview ──────────────────────────────────────────────── */
-.duration-preview {
-	display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-	background: rgba(14, 79, 132, 0.06);
-	border: 1px solid rgba(14, 79, 132, 0.2);
-	border-radius: var(--radius-sm);
-	padding: 10px 14px;
-	font-size: 12px;
-	color: var(--text-secondary);
-}
-.duration-preview strong { color: var(--accent-primary); }
-.duration-preview.invalid {
-	background: rgba(220, 38, 38, 0.06);
-	border-color: rgba(220, 38, 38, 0.25);
-	color: #b91c1c;
-}
-.duration-sep { color: var(--text-muted); }
+
 
 /* ── Error ──────────────────────────────────────────────────────────── */
 .error-msg {
@@ -545,6 +519,7 @@
 	display: flex; align-items: center; gap: 14px;
 	background: var(--bg-elevated);
 	border: 1.5px solid var(--border-subtle);
+	border-left: 4px solid transparent;
 	border-radius: var(--radius-md);
 	padding: 14px 16px;
 	transition: border-color var(--transition), box-shadow var(--transition);
@@ -555,9 +530,8 @@
 }
 
 .emp-avatar {
-	width: 42px; height: 42px;
+	width: 40px; height: 40px;
 	border-radius: 50%;
-	border: 2px solid;
 	display: flex; align-items: center; justify-content: center;
 	flex-shrink: 0;
 }
@@ -566,12 +540,9 @@
 .emp-info { flex: 1; min-width: 0; }
 .emp-name-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
 .emp-name { font-weight: 600; font-size: 14px; color: var(--text-primary); }
-.emp-badge {
-	font-size: 11px; font-weight: 600;
-	padding: 2px 8px;
-	border-radius: 999px;
-	border: 1.5px solid;
-	letter-spacing: 0.03em;
+.emp-pos {
+	font-size: 11px; font-weight: 700;
+	letter-spacing: 0.04em;
 	white-space: nowrap;
 }
 

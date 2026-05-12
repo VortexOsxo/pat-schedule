@@ -71,6 +71,7 @@ export function addMinutes(time: string, n: number): string {
 
 export const POSITIONS = [
 	'Patrouilleur',
+	'Assistant',
 	'Sauveteur',
 	"Chef d'équipe",
 ];
