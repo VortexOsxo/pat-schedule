@@ -2,52 +2,46 @@
 	import { employees, POSITIONS, workedMinutes, fmtDuration, addMinutes } from '$lib/stores/schedule';
 
 
-	// ── Form state ────────────────────────────────────────────────────
-	let name = $state('');
+	// ── Form state ───────────────────────────────────────────────
+	let names = $state(['']);
 	let position = $state('Patrouilleur');
 	let startTime = $state('08:00');
 	let endTime = $state('16:00');
 	let breakTime = $state('12:00');
 	let error = $state('');
 	let successAnim = $state(false);
+	let successCount = $state(0);
 
-	function validate(): boolean {
-		if (!name.trim()) { error = "Le nom de l'employé est requis."; return false; }
-		const pos = position;
-		if (!pos) { error = 'Veuillez sélectionner un poste.'; return false; }
+	function addNameField() { names = [...names, '']; }
+	function removeName(i: number) { names = names.filter((_, idx) => idx !== i); }
+
+	function handleSubmit() {
+		const valid = names.map(n => n.trim()).filter(Boolean);
+		if (!valid.length) { error = 'Entrez au moins un nom.'; return; }
+		if (!validateTimes()) return;
+		valid.forEach(n => employees.add({ name: n, position, startTime, endTime, breakTime }));
+		successCount = valid.length;
+		successAnim = true;
+		setTimeout(() => { successAnim = false; successCount = 0; }, 800);
+		names = [''];
+		position = 'Patrouilleur';
+		startTime = '08:00'; endTime = '16:00'; breakTime = '12:00';
+	}
+
+	function validateTimes(): boolean {
+		if (!position) { error = 'Veuillez sélectionner un poste.'; return false; }
 		const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/;
 		if (!timeRe.test(startTime) || !timeRe.test(endTime) || !timeRe.test(breakTime)) {
-			error = 'Format invalide. Utilisez HH:MM (ex. 08:00, 16:30).';
-			return false;
+			error = 'Format invalide. Utilisez HH:MM (ex. 08:00, 16:30).'; return false;
 		}
 		const [sh, sm] = startTime.split(':').map(Number);
 		const [eh, em] = endTime.split(':').map(Number);
 		const [bh, bm] = breakTime.split(':').map(Number);
-		const startMins = sh * 60 + sm;
-		const endMins   = eh * 60 + em;
-		const breakMins = bh * 60 + bm;
-		if (endMins <= startMins) { error = "L'heure de fin doit être après l'heure de début."; return false; }
-		if (endMins - startMins <= 30) { error = 'Le quart doit durer plus de 30 minutes.'; return false; }
-		if (breakMins < startMins || breakMins + 30 > endMins) {
-			error = 'La pause doit être à l\'intérieur du quart de travail.'; return false;
-		}
-		error = '';
-		return true;
-	}
-
-	function handleSubmit() {
-		if (!validate()) return;
-		const pos = position;
-		employees.add({ name: name.trim(), position: pos, startTime, endTime, breakTime });
-		// Animate success
-		successAnim = true;
-		setTimeout(() => (successAnim = false), 700);
-		// Reset
-		name = '';
-		position = '';
-		startTime = '08:00';
-		endTime = '16:00';
-		breakTime = '12:00';
+		const s = sh * 60 + sm, e = eh * 60 + em, b = bh * 60 + bm;
+		if (e <= s) { error = "L'heure de fin doit être après l'heure de début."; return false; }
+		if (e - s <= 30) { error = 'Le quart doit durer plus de 30 minutes.'; return false; }
+		if (b < s || b + 30 > e) { error = 'La pause doit être à l\'intérieur du quart.'; return false; }
+		error = ''; return true;
 	}
 
 
@@ -142,17 +136,27 @@
 			<h2 class="card-title">Ajouter un quart</h2>
 
 			<form class="form" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
-				<!-- Name -->
+				<!-- Name list -->
 				<div class="field">
-					<label class="label" for="emp-name">Nom de l'employé</label>
-					<input
-						id="emp-name"
-						class="input"
-						type="text"
-						placeholder="ex. Marie Tremblay"
-						bind:value={name}
-						autocomplete="off"
-					/>
+					<label class="label">Employé{names.length > 1 ? 's' : ''}</label>
+					<div class="name-list">
+						{#each names as _, i}
+							<div class="name-row">
+								<span class="name-num">{i + 1}</span>
+								<input
+									class="input name-input"
+									type="text"
+									placeholder="Nom de l'employé"
+									bind:value={names[i]}
+									autocomplete="off"
+								/>
+								{#if names.length > 1}
+									<button type="button" class="name-remove" onclick={() => removeName(i)} aria-label="Retirer">×</button>
+								{/if}
+							</div>
+						{/each}
+					</div>
+					<button type="button" class="add-name-btn" onclick={addNameField}>+ Ajouter un employé</button>
 				</div>
 
 				<!-- Position -->
@@ -166,44 +170,19 @@
 					</select>
 				</div>
 
-
-
 				<!-- Times row -->
 				<div class="time-row">
 					<div class="field">
 						<label class="label" for="emp-start">Début</label>
-						<input
-							id="emp-start"
-							class="input time-input"
-							type="text"
-							placeholder="HH:MM"
-							maxlength="5"
-							bind:value={startTime}
-						/>
+						<input id="emp-start" class="input time-input" type="text" placeholder="HH:MM" maxlength="5" bind:value={startTime} />
 					</div>
 					<div class="field">
 						<label class="label" for="emp-end">Fin</label>
-						<input
-							id="emp-end"
-							class="input time-input"
-							type="text"
-							placeholder="HH:MM"
-							maxlength="5"
-							bind:value={endTime}
-						/>
+						<input id="emp-end" class="input time-input" type="text" placeholder="HH:MM" maxlength="5" bind:value={endTime} />
 					</div>
 					<div class="field">
-						<label class="label" for="emp-break">
-							Pause
-						</label>
-						<input
-							id="emp-break"
-							class="input time-input"
-							type="text"
-							placeholder="HH:MM"
-							maxlength="5"
-							bind:value={breakTime}
-						/>
+						<label class="label" for="emp-break">Pause</label>
+						<input id="emp-break" class="input time-input" type="text" placeholder="HH:MM" maxlength="5" bind:value={breakTime} />
 					</div>
 				</div>
 
@@ -211,7 +190,6 @@
 				{#if startTime && endTime}
 					{@const mins = workedMinutes(startTime, endTime)}
 					<div class="duration-preview" class:invalid={mins <= 0}>
-
 						{#if mins > 0}
 							Temps travaillé : <strong>{fmtDuration(mins)}</strong>
 							<span class="duration-sep">•</span>
@@ -226,14 +204,12 @@
 					<p class="error-msg" role="alert">{error}</p>
 				{/if}
 
-				<button
-					id="add-employee-btn"
-					class="btn-primary"
-					class:success={successAnim}
-					onclick={handleSubmit}
-					type="submit"
-				>
-					{successAnim ? '✓ Ajouté !' : 'Ajouter l\'employé'}
+				<button id="add-employee-btn" class="btn-primary" class:success={successAnim} type="submit">
+					{#if successAnim}
+						{successCount > 1 ? `✓ ${successCount} ajoutés !` : '✓ Ajouté !'}
+					{:else}
+						{names.filter(n => n.trim()).length > 1 ? 'Ajouter les employés' : "Ajouter l'employé"}
+					{/if}
 				</button>
 			</form>
 		</section>
@@ -411,6 +387,37 @@
 	border-bottom: 1px solid var(--border-subtle);
 }
 
+/* ── Name list ──────────────────────────────────────────────────────── */
+.name-list { display: flex; flex-direction: column; gap: 6px; }
+.name-row {
+	display: flex; align-items: center; gap: 8px;
+}
+.name-num {
+	font-size: 11px; font-weight: 700;
+	color: var(--text-muted);
+	min-width: 16px; text-align: right;
+	flex-shrink: 0;
+}
+.name-input { flex: 1; }
+.name-remove {
+	font-size: 15px;
+	color: var(--text-muted);
+	padding: 4px 6px;
+	border-radius: var(--radius-sm);
+	transition: color var(--transition), background var(--transition);
+	flex-shrink: 0;
+}
+.name-remove:hover { color: #dc2626; background: rgba(220,38,38,0.08); }
+.add-name-btn {
+	margin-top: 6px;
+	font-size: 12px; font-weight: 600;
+	color: var(--accent-primary);
+	padding: 4px 0;
+	text-align: left;
+	transition: opacity var(--transition);
+}
+.add-name-btn:hover { opacity: 0.75; }
+
 /* ── Form ───────────────────────────────────────────────────────────── */
 .form { display: flex; flex-direction: column; gap: 16px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
@@ -439,6 +446,7 @@
 }
 .select { appearance: none; cursor: pointer; background-color: var(--bg-elevated); }
 .select option { background: #fff; }
+.bulk-textarea { resize: vertical; line-height: 1.6; min-height: 90px; }
 
 .time-row {
 	display: grid;
