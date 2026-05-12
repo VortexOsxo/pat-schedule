@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { employees, addMinutes, settings } from '$lib/stores/schedule';
+	import { get } from 'svelte/store';
 	import { Input, EmployeeCard } from '$lib';
+	import { deserialize } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 
 	const slots = $derived.by(() => {
 		const s = [];
@@ -36,11 +39,37 @@
 		}
 	}
 
+	async function updateBreakTime(id: string, slotTime: string) {
+		const prev = get(employees);
+		
+		// Optimistic Update
+		employees.update(id, { breakTime: slotTime });
+
+		const formData = new FormData();
+		formData.append('id', id);
+		formData.append('fields', JSON.stringify({ breakTime: slotTime }));
+
+		try {
+			const response = await fetch('/?/update', {
+				method: 'POST',
+				body: formData
+			});
+
+			const result = deserialize(await response.text());
+			if (result.type !== 'success' && result.type !== 'redirect') {
+				employees.set(prev);
+			}
+			await invalidateAll();
+		} catch {
+			employees.set(prev);
+		}
+	}
+
 	function handleDrop(e: DragEvent, slotTime: string) {
 		e.preventDefault();
 		dragOverSlot = null;
 		if (draggedId) {
-			employees.update(draggedId, { breakTime: slotTime });
+			updateBreakTime(draggedId, slotTime);
 			draggedId = null;
 		}
 	}
@@ -85,7 +114,7 @@
 	function handleTouchEnd() {
 		stopAutoScroll();
 		if (draggedId && dragOverSlot) {
-			employees.update(draggedId, { breakTime: dragOverSlot });
+			updateBreakTime(draggedId, dragOverSlot);
 		}
 		draggedId = null;
 		dragOverSlot = null;
@@ -97,6 +126,12 @@
 		Sauveteur: '#16a34a',
 		"Chef d'équipe": '#6042b0',
 	};
+	async function saveSettings(patch: any) {
+		const formData = new FormData();
+		formData.append('patch', JSON.stringify(patch));
+		await fetch('/?/updateSettings', { method: 'POST', body: formData });
+		await invalidateAll();
+	}
 </script>
 
 <svelte:head>
@@ -114,7 +149,7 @@
 				label="Début"
 				variant="range"
 				value={$settings.breaksStartH} 
-				oninput={(e) => settings.update(s => ({ ...s, breaksStartH: +e.currentTarget.value }))}
+				oninput={(e) => saveSettings({ breaksStartH: +e.currentTarget.value })}
 			/>
 			<Input 
 				id="end-h" 
@@ -124,7 +159,7 @@
 				label="Fin"
 				variant="range"
 				value={$settings.breaksEndH} 
-				oninput={(e) => settings.update(s => ({ ...s, breaksEndH: +e.currentTarget.value }))}
+				oninput={(e) => saveSettings({ breaksEndH: +e.currentTarget.value })}
 			/>
 		</div>
 	</div>

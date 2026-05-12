@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { employees, POSITIONS, workedMinutes, fmtDuration, addMinutes } from '$lib/stores/schedule';
+	import { get } from 'svelte/store';
 	import { Card, Input, Select, Button, EmployeeCard, Dialog } from '$lib';
-
+	import { enhance } from '$app/forms';
+	import type { ActionResult } from '@sveltejs/kit';
 
 	// ── Form state ───────────────────────────────────────────────
 	let names = $state(['']);
@@ -15,15 +17,25 @@
 	function addNameField() { names = [...names, '']; }
 	function removeName(i: number) { names = names.filter((_, idx) => idx !== i); }
 
-	function handleSubmit() {
-		const valid = names.map(n => n.trim()).filter(Boolean);
-		if (!valid.length) { error = 'Entrez au moins un nom.'; return; }
-		if (!validateTimes()) return;
-		valid.forEach(n => employees.add({ name: n, position, startTime, endTime }));
-		successCount = valid.length;
+	function handleEnhance({ formData }: any) {
+		// Optimistic Update
+		const prev = get(employees);
+		const newNames = (formData.getAll('names[]') as string[]).map(n => n.trim()).filter(Boolean);
+		newNames.forEach(n => employees.add({ name: n, position, startTime, endTime }));
+
+		// Local UI feedback
+		successCount = newNames.length;
 		successAnim = true;
 		setTimeout(() => { successAnim = false; successCount = 0; }, 800);
 		names = [''];
+
+		return async ({ result, update }: { result: ActionResult, update: any }) => {
+			if (result.type !== 'success' && result.type !== 'redirect') {
+				// Rollback on error
+				employees.set(prev);
+			}
+			await update();
+		};
 	}
 
 	function validateTimes(): boolean {
@@ -80,7 +92,7 @@
 	<main class="main-grid">
 		<!-- ── Entry Form ─────────────────────────────────── -->
 		<Card title="Ajouter un quart" class="form-card">
-			<form class="form" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+			<form class="form" method="POST" action="?/add" use:enhance={handleEnhance}>
 				<!-- Name list -->
 				<div class="field">
 					<label class="label" for="emp-name-0">Employé{names.length > 1 ? 's' : ''}</label>
@@ -90,6 +102,7 @@
 								<span class="name-num">{i + 1}</span>
 								<input
 									id="emp-name-{i}"
+									name="names[]"
 									class="input name-input"
 									type="text"
 									placeholder="Nom de l'employé"
@@ -108,6 +121,7 @@
 				<!-- Position -->
 				<Select 
 					id="emp-position" 
+					name="position"
 					label="Poste" 
 					bind:value={position}
 					options={[
@@ -118,8 +132,8 @@
 
 				<!-- Times row -->
 				<div class="time-row">
-					<Input id="emp-start" label="Début" variant="time" placeholder="HH:MM" maxlength={5} bind:value={startTime} />
-					<Input id="emp-end" label="Fin" variant="time" placeholder="HH:MM" maxlength={5} bind:value={endTime} />
+					<Input id="emp-start" name="startTime" label="Début" variant="time" placeholder="HH:MM" maxlength={5} bind:value={startTime} />
+					<Input id="emp-end" name="endTime" label="Fin" variant="time" placeholder="HH:MM" maxlength={5} bind:value={endTime} />
 				</div>
 
 				{#if error}
@@ -181,10 +195,6 @@
 	variant="danger"
 	confirmText="Retirer"
 	onCancel={cancelDelete}
-	onConfirm={() => {
-		if (pendingDelete === '__all__') { employees.clear(); pendingDelete = null; }
-		else confirmDelete();
-	}}
 >
 	<p class="dialog-msg">
 		{#if pendingDelete === '__all__'}
@@ -195,10 +205,28 @@
 	</p>
 	<div class="dialog-actions">
 		<Button variant="ghost" onclick={cancelDelete}>Annuler</Button>
-		<Button variant="danger" onclick={() => {
-			if (pendingDelete === '__all__') { employees.clear(); pendingDelete = null; }
-			else confirmDelete();
-		}}>Retirer</Button>
+		<form method="POST" action={pendingDelete === '__all__' ? '?/clear' : '?/remove'} use:enhance={({ formData }) => {
+			const prev = get(employees);
+			const idToDelete = formData.get('id') as string;
+			
+			// Optimistic Update
+			if (pendingDelete === '__all__') employees.clear();
+			else if (idToDelete) employees.remove(idToDelete);
+			
+			pendingDelete = null;
+
+			return async ({ result, update }) => {
+				if (result.type !== 'success' && result.type !== 'redirect') {
+					employees.set(prev);
+				}
+				await update();
+			};
+		}}>
+			{#if pendingDelete !== '__all__'}
+				<input type="hidden" name="id" value={pendingDelete} />
+			{/if}
+			<Button variant="danger" type="submit">Retirer</Button>
+		</form>
 	</div>
 </Dialog>
 

@@ -24,18 +24,13 @@ function load(): Employee[] {
 }
 
 function createStore() {
-	const { subscribe, update, set } = writable<Employee[]>(load());
-
-	subscribe((employees) => {
-		if (typeof localStorage !== 'undefined') {
-			localStorage.setItem('pat-employees', JSON.stringify(employees));
-		}
-	});
+	const { subscribe, update, set } = writable<Employee[]>([]);
 
 	return {
 		subscribe,
+		set,
 		add: (emp: Omit<Employee, 'id'>) =>
-			update((list) => [...list, { ...emp, id: uuid() }]),
+			update((list) => [...list, { ...emp, id: crypto.randomUUID() }]),
 		remove: (id: string) =>
 			update((list) => list.filter((e) => e.id !== id)),
 		update: (id: string, patch: Partial<Employee>) =>
@@ -75,12 +70,15 @@ function loadSettings(): Settings {
 }
 
 function createSettingsStore() {
-	const { subscribe, set, update } = writable<Settings>(loadSettings());
-	subscribe((val) => {
-		if (typeof localStorage !== 'undefined') {
-			localStorage.setItem('pat-settings', JSON.stringify(val));
-		}
-	});
+	const fallback: Settings = { 
+		breaksStartH: 11, 
+		breaksEndH: 15, 
+		positionsStartH: 10, 
+		positionsEndH: 16,
+		rotationInterval: 2,
+		rotationSeed: 0
+	};
+	const { subscribe, set, update } = writable<Settings>(fallback);
 	return { subscribe, set, update };
 }
 

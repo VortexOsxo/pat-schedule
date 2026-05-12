@@ -1,9 +1,19 @@
 <script lang="ts">
 	import '../app.css';
 	import { page } from '$app/state';
-	import { employees } from '$lib/stores/schedule';
+	import { employees, settings } from '$lib/stores/schedule';
 
-	let { children } = $props();
+	let { data, children } = $props();
+
+	// Sync store with server data from LayoutServerLoad
+	$effect(() => {
+		if (data?.employees) {
+			employees.set(data.employees);
+		}
+		if (data?.settings) {
+			settings.set(data.settings);
+		}
+	});
 </script>
 
 <div class="app">

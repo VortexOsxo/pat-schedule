@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { employees, addMinutes, settings } from '$lib/stores/schedule';
+	import { get } from 'svelte/store';
 	import { Button, Input, Select, Card, EmployeeCard } from '$lib';
+	import { invalidateAll } from '$app/navigation';
 
 	const roles = [
 		{ id: 'bateau', name: 'Bateau', color: '#0e4f84' },
@@ -135,6 +137,29 @@
 			total: (s[e.id]?.speech || 0) + (s[e.id]?.pied2 || 0)
 		})).sort((a, b) => b.total - a.total);
 	});
+	async function saveSettings(patch: any) {
+		const prev = get(settings);
+		
+		// Optimistic Update
+		settings.update(s => ({ ...s, ...patch }));
+
+		const formData = new FormData();
+		formData.append('patch', JSON.stringify(patch));
+		
+		try {
+			const response = await fetch('/?/updateSettings', { method: 'POST', body: formData });
+			const result = (await response.headers.get('content-type')?.includes('application/json')) 
+				? await response.json() 
+				: null; // Basic check
+
+			if (response.status >= 400) {
+				settings.set(prev);
+			}
+			await invalidateAll();
+		} catch {
+			settings.set(prev);
+		}
+	}
 </script>
 
 <main class="main-content">
@@ -148,7 +173,7 @@
 				label="Début"
 				variant="range"
 				value={$settings.positionsStartH} 
-				oninput={(e) => settings.update(s => ({ ...s, positionsStartH: +e.currentTarget.value }))}
+				oninput={(e) => saveSettings({ positionsStartH: +e.currentTarget.value })}
 			/>
 			<Input 
 				id="end-h" 
@@ -158,7 +183,7 @@
 				label="Fin"
 				variant="range"
 				value={$settings.positionsEndH} 
-				oninput={(e) => settings.update(s => ({ ...s, positionsEndH: +e.currentTarget.value }))}
+				oninput={(e) => saveSettings({ positionsEndH: +e.currentTarget.value })}
 			/>
 		</div>
 
@@ -168,7 +193,7 @@
 				label="Rotation"
 				variant="compact"
 				value={$settings.rotationInterval} 
-				onchange={(e) => settings.update(s => ({ ...s, rotationInterval: +e.currentTarget.value }))}
+				onchange={(e) => saveSettings({ rotationInterval: +e.currentTarget.value })}
 				options={[
 					{ value: 0.5, label: 'Chaque 30 minutes' },
 					{ value: 1, label: 'Chaque heure' },
@@ -248,7 +273,7 @@
  	</div>
  
 	<div class="actions-bar">
-		<Button onclick={() => settings.update(s => ({ ...s, rotationSeed: s.rotationSeed + 1 }))}>
+		<Button onclick={() => saveSettings({ rotationSeed: ($settings.rotationSeed || 0) + 1 })}>
 			Regénérer l'horaire
 		</Button>
 	</div>
