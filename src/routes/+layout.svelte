@@ -19,12 +19,9 @@
 			<nav class="nav">
 				<a href="/" class="nav-link" class:active={page.url.pathname === '/'}>Saisie</a>
 				<a href="/breaks" class="nav-link" class:active={page.url.pathname === '/breaks'}>Pauses</a>
+				<a href="/positions" class="nav-link" class:active={page.url.pathname === '/positions'}>Postes</a>
 			</nav>
 
-			<div class="header-stat">
-				<span class="stat-num">{$employees.length}</span>
-				<span class="stat-label">employé{$employees.length !== 1 ? 's' : ''}</span>
-			</div>
 		</div>
 	</header>
 
@@ -89,20 +86,10 @@
 		box-shadow: var(--shadow-sm);
 	}
 
-	.header-stat { text-align: right; min-width: 80px; }
-	.stat-num {
-		display: block;
-		font-size: 22px; font-weight: 700;
-		color: var(--accent-primary);
-		line-height: 1;
-	}
-	.stat-label { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-
 	@media (max-width: 800px) {
 		.header-inner { padding: 10px 16px; }
 		.brand-sub { display: none; }
 		.nav { margin: 0 12px; }
 		.nav-link { padding: 6px 10px; font-size: 12px; }
-		.stat-num { font-size: 18px; }
 	}
 </style>

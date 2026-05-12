@@ -46,6 +46,33 @@ function createStore() {
 
 export const employees = createStore();
 
+// ── Settings Store (Shared Range) ────────────────────────────────────
+export interface Settings {
+	startH: number;
+	endH: number;
+}
+
+function loadSettings(): Settings {
+	if (typeof localStorage === 'undefined') return { startH: 11, endH: 15 };
+	try {
+		return JSON.parse(localStorage.getItem('pat-settings') ?? '{"startH":11,"endH":15}');
+	} catch {
+		return { startH: 11, endH: 15 };
+	}
+}
+
+function createSettingsStore() {
+	const { subscribe, set, update } = writable<Settings>(loadSettings());
+	subscribe((val) => {
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem('pat-settings', JSON.stringify(val));
+		}
+	});
+	return { subscribe, set, update };
+}
+
+export const settings = createSettingsStore();
+
 // ── Helpers ───────────────────────────────────────────────────────────
 /** Given HH:mm strings, returns the total worked minutes (excluding 30-min break) */
 export function workedMinutes(start: string, end: string): number {

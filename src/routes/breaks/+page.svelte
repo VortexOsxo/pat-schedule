@@ -1,13 +1,10 @@
 <script lang="ts">
-	import { employees, addMinutes } from '$lib/stores/schedule';
-
-	let startRange = $state(11);
-	let endRange = $state(15);
+	import { employees, addMinutes, settings } from '$lib/stores/schedule';
 
 	const slots = $derived.by(() => {
 		const s = [];
-		const start = Math.max(0, Math.min(startRange, 23));
-		const end = Math.max(start, Math.min(endRange, 23));
+		const start = Math.max(0, Math.min($settings.startH, 23));
+		const end = Math.max(start, Math.min($settings.endH, 23));
 		for (let h = start; h <= end; h++) {
 			const hh = String(h).padStart(2, '0');
 			s.push(`${hh}:00`);
@@ -110,12 +107,18 @@
 		<div class="range-inputs">
 			<div class="range-field">
 				<label for="start-h">Début</label>
-				<input id="start-h" type="number" min="0" max="23" bind:value={startRange} class="range-input" />
+				<input id="start-h" type="number" min="0" max="23" 
+					value={$settings.startH} 
+					oninput={(e) => settings.update(s => ({ ...s, startH: +e.currentTarget.value }))}
+					class="range-input" />
 				<span>h</span>
 			</div>
 			<div class="range-field">
 				<label for="end-h">Fin</label>
-				<input id="end-h" type="number" min="0" max="23" bind:value={endRange} class="range-input" />
+				<input id="end-h" type="number" min="0" max="23" 
+					value={$settings.endH} 
+					oninput={(e) => settings.update(s => ({ ...s, endH: +e.currentTarget.value }))}
+					class="range-input" />
 				<span>h</span>
 			</div>
 		</div>
