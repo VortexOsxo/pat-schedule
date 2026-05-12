@@ -7,7 +7,7 @@ export interface Employee {
 	position: string;
 	startTime: string;  // HH:mm
 	endTime: string;    // HH:mm
-	breakTime: string;  // HH:mm  (30-min break starts at this time)
+	breakTime?: string; // HH:mm  (30-min break starts at this time)
 }
 
 function uuid(): string {

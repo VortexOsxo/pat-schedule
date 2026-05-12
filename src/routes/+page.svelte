@@ -7,7 +7,6 @@
 	let position = $state('Patrouilleur');
 	let startTime = $state('08:00');
 	let endTime = $state('16:00');
-	let breakTime = $state('12:00');
 	let error = $state('');
 	let successAnim = $state(false);
 	let successCount = $state(0);
@@ -19,7 +18,7 @@
 		const valid = names.map(n => n.trim()).filter(Boolean);
 		if (!valid.length) { error = 'Entrez au moins un nom.'; return; }
 		if (!validateTimes()) return;
-		valid.forEach(n => employees.add({ name: n, position, startTime, endTime, breakTime }));
+		valid.forEach(n => employees.add({ name: n, position, startTime, endTime }));
 		successCount = valid.length;
 		successAnim = true;
 		setTimeout(() => { successAnim = false; successCount = 0; }, 800);
@@ -29,32 +28,20 @@
 	function validateTimes(): boolean {
 		if (!position) { error = 'Veuillez sélectionner un poste.'; return false; }
 		const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/;
-		if (!timeRe.test(startTime) || !timeRe.test(endTime) || !timeRe.test(breakTime)) {
+		if (!timeRe.test(startTime) || !timeRe.test(endTime)) {
 			error = 'Format invalide. Utilisez HH:MM (ex. 08:00, 16:30).'; return false;
 		}
 		const [sh, sm] = startTime.split(':').map(Number);
 		const [eh, em] = endTime.split(':').map(Number);
-		const [bh, bm] = breakTime.split(':').map(Number);
-		const s = sh * 60 + sm, e = eh * 60 + em, b = bh * 60 + bm;
+		const s = sh * 60 + sm, e = eh * 60 + em;
 		if (e <= s) { error = "L'heure de fin doit être après l'heure de début."; return false; }
 		if (e - s <= 30) { error = 'Le quart doit durer plus de 30 minutes.'; return false; }
-		if (b < s || b + 30 > e) { error = 'La pause doit être à l\'intérieur du quart.'; return false; }
 		error = ''; return true;
 	}
 
 
 
-	// Break time boundary helpers
-	const breakMin = $derived(startTime);
-	const breakMax = $derived(
-		!endTime
-			? ''
-			: (() => {
-					const [h, m] = endTime.split(':').map(Number);
-					const total = h * 60 + m - 30;
-					return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
-				})()
-	);
+
 
 	// Delete with confirmation state
 	let pendingDelete = $state<string | null>(null);
@@ -139,10 +126,6 @@
 					<div class="field">
 						<label class="label" for="emp-end">Fin</label>
 						<input id="emp-end" class="input time-input" type="text" placeholder="HH:MM" maxlength="5" bind:value={endTime} />
-					</div>
-					<div class="field">
-						<label class="label" for="emp-break">Pause</label>
-						<input id="emp-break" class="input time-input" type="text" placeholder="HH:MM" maxlength="5" bind:value={breakTime} />
 					</div>
 				</div>
 
@@ -239,7 +222,7 @@
 <style>
 /* ── Grid ───────────────────────────────────────────────────────────── */
 .main-grid {
-	max-width: 1100px;
+	max-width: 1400px;
 	margin: 32px auto;
 	padding: 0 24px 48px;
 	display: grid;

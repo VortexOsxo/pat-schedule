@@ -16,10 +16,13 @@
 		return s;
 	});
 
+	const unassigned = $derived($employees.filter(emp => !emp.breakTime));
+
 	function getEmployeesOnBreak(slotStart: string) {
 		const slotEnd = addMinutes(slotStart, 30);
 		return $employees.filter(emp => {
 			const bStart = emp.breakTime;
+			if (!bStart) return false;
 			// Show employee if their break STARTS within this 30-min slot
 			return bStart >= slotStart && bStart < slotEnd;
 		});
@@ -44,6 +47,23 @@
 		}
 	}
 
+	// ── Auto-scroll logic ──
+	let scrollInterval: any = null;
+	function checkAutoScroll(y: number) {
+		const threshold = 100;
+		const speed = 7;
+		if (y < threshold) {
+			if (!scrollInterval) scrollInterval = setInterval(() => window.scrollBy(0, -speed), 16);
+		} else if (y > window.innerHeight - threshold) {
+			if (!scrollInterval) scrollInterval = setInterval(() => window.scrollBy(0, speed), 16);
+		} else {
+			stopAutoScroll();
+		}
+	}
+	function stopAutoScroll() {
+		if (scrollInterval) { clearInterval(scrollInterval); scrollInterval = null; }
+	}
+
 	// ── Mobile Touch Support ──
 	function handleTouchStart(id: string) {
 		draggedId = id;
@@ -53,6 +73,7 @@
 		if (!draggedId) return;
 		e.preventDefault();
 		const touch = e.touches[0];
+		checkAutoScroll(touch.clientY);
 		const target = document.elementFromPoint(touch.clientX, touch.clientY);
 		const slot = target?.closest('.time-slot');
 		if (slot) {
@@ -64,6 +85,7 @@
 	}
 
 	function handleTouchEnd() {
+		stopAutoScroll();
 		if (draggedId && dragOverSlot) {
 			employees.update(draggedId, { breakTime: dragOverSlot });
 		}
@@ -99,6 +121,33 @@
 		</div>
 	</div>
 
+	{#if unassigned.length > 0}
+		<div class="unassigned-section">
+			<h3 class="section-title">En attente de pause ({unassigned.length})</h3>
+			<div class="break-tags unassigned-tags">
+				{#each unassigned as emp}
+					<div 
+						class="break-tag" 
+						style="border-left-color: {posColors[emp.position] || '#94a3b8'}"
+						draggable="true"
+						ondragstart={(e) => handleDragStart(e, emp.id)}
+						ontouchstart={() => handleTouchStart(emp.id)}
+						ontouchmove={handleTouchMove}
+						ontouchend={handleTouchEnd}
+						class:is-dragging={draggedId === emp.id}
+						role="button"
+						tabindex="0"
+						aria-label="Déplacer {emp.name}"
+					>
+						<div class="break-tag-main">
+							<span class="tag-name">{emp.name}</span>
+						</div>
+					</div>
+				{/each}
+			</div>
+		</div>
+	{/if}
+
 	<div class="break-grid" role="list">
 		{#each slots as time}
 			{@const onBreak = getEmployeesOnBreak(time)}
@@ -107,9 +156,9 @@
 				class:has-breaks={onBreak.length > 0}
 				class:drag-over={dragOverSlot === time}
 				data-time={time}
-				ondragover={(e) => { e.preventDefault(); dragOverSlot = time; }}
-				ondragleave={() => dragOverSlot = null}
-				ondrop={(e) => handleDrop(e, time)}
+				ondragover={(e) => { e.preventDefault(); dragOverSlot = time; checkAutoScroll(e.clientY); }}
+				ondragleave={() => { dragOverSlot = null; stopAutoScroll(); }}
+				ondrop={(e) => { stopAutoScroll(); handleDrop(e, time); }}
 				role="listitem"
 				aria-label="Créneau de {time}"
 			>
@@ -149,7 +198,7 @@
 
 <style>
 	.main-content {
-		max-width: 900px;
+		max-width: 1400px;
 		margin: 20px auto;
 		padding: 0 16px;
 	}
@@ -158,12 +207,29 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		margin-bottom: 16px;
+		margin-bottom: 24px;
 		background: #fff;
-		padding: 12px 20px;
+		padding: 16px 24px;
 		border-radius: var(--radius-md);
 		border: 1px solid var(--border-subtle);
 		box-shadow: var(--shadow-sm);
+		width: 100%;
+	}
+
+	.unassigned-section {
+		margin-bottom: 32px;
+		padding: 24px;
+		background: rgba(14, 79, 132, 0.03);
+		border: 2px dashed var(--border-subtle);
+		border-radius: var(--radius-lg);
+		width: 100%;
+	}
+	.section-title { font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; }
+	.unassigned-tags { 
+		display: grid !important;
+		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+		gap: 12px !important;
+		align-items: start;
 	}
 
 	.range-inputs { display: flex; gap: 20px; }
@@ -187,12 +253,13 @@
 		border: 1.5px solid var(--border-subtle);
 		overflow: hidden;
 		box-shadow: var(--shadow-md);
+		width: 100%;
 	}
 
 	.time-slot {
 		display: flex;
 		border-bottom: 1px solid var(--border-subtle);
-		min-height: 48px;
+		min-height: 64px;
 	}
 	.time-slot:last-child { border-bottom: none; }
 	.time-slot.has-breaks { background: #fcfdfe; }
@@ -229,13 +296,15 @@
 		border: 1px solid var(--border-subtle);
 		border-left: 4px solid #94a3b8;
 		border-radius: 6px;
-		padding: 8px 12px;
+		padding: 6px 12px;
 		display: flex;
 		align-items: center;
 		gap: 12px;
 		box-shadow: var(--shadow-sm);
 		width: fit-content;
 		min-width: 160px;
+		max-width: 240px;
+		flex-shrink: 0;
 		cursor: grab;
 		transition: transform 0.1s, opacity 0.1s;
 		touch-action: none;
