@@ -24,8 +24,6 @@
 		successAnim = true;
 		setTimeout(() => { successAnim = false; successCount = 0; }, 800);
 		names = [''];
-		position = 'Patrouilleur';
-		startTime = '08:00'; endTime = '16:00'; breakTime = '12:00';
 	}
 
 	function validateTimes(): boolean {
@@ -101,10 +99,7 @@
 	function posColor(pos: string): string {
 		return posColors[pos] ?? '#94a3b8';
 	}
-	// Ensure readable text on each background
-	function posTextColor(pos: string): string {
-		return pos === 'Patrouilleur' ? '#78350f' : '#ffffff';
-	}
+
 
 	// Svelte action: focus element on mount
 	function focusOnMount(node: HTMLElement) {
@@ -130,7 +125,7 @@
 			</div>
 			<div class="header-stat">
 				<span class="stat-num">{$employees.length}</span>
-				<span class="stat-label">employé{$employees.length !== 1 ? 's' : ''} aujourd'hui</span>
+				<span class="stat-label">employé{$employees.length !== 1 ? 's' : ''}</span>
 			</div>
 		</div>
 	</header>
@@ -220,15 +215,12 @@
 				<ul class="emp-list">
 					{#each $employees as emp (emp.id)}
 						<li class="emp-card" style="border-left-color:{posColor(emp.position)}">
-							<div class="emp-avatar" style="background:{posColor(emp.position)}; color:{posTextColor(emp.position)};">
-								<span class="emp-initials">{emp.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()}</span>
-							</div>
+
 
 							<div class="emp-info">
-								<div class="emp-name-row">
-									<span class="emp-name">{emp.name}</span>
-									<span class="emp-pos" style="color:{posColor(emp.position)}">{emp.position}</span>
-								</div>
+								<span class="emp-name">{emp.name}</span>
+								<span class="emp-pos" style="color:{posColor(emp.position)}">{emp.position}</span>
+								<div class="emp-spacer"></div>
 								<div class="emp-times">
 									<span class="time-chip">{emp.startTime} – {emp.endTime}</span>
 									{#if editingBreakId === emp.id}
@@ -249,9 +241,8 @@
 											class="time-chip time-chip-btn"
 											title="Modifier la pause"
 											onclick={() => startEditBreak(emp)}
-										>Pause {emp.breakTime}–{addMinutes(emp.breakTime, 30)}</button>
+										>Pause {emp.breakTime}</button>
 									{/if}
-									<span class="time-chip worked">{fmtDuration(workedMinutes(emp.startTime, emp.endTime))}</span>
 								</div>
 							</div>
 
@@ -513,15 +504,15 @@
 }
 .empty-hint { font-size: 12px; margin-top: 4px; }
 
-.emp-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.emp-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
 
 .emp-card {
-	display: flex; align-items: center; gap: 14px;
+	display: flex; align-items: center; gap: 8px;
 	background: var(--bg-elevated);
 	border: 1.5px solid var(--border-subtle);
 	border-left: 4px solid transparent;
 	border-radius: var(--radius-md);
-	padding: 14px 16px;
+	padding: 6px 12px;
 	transition: border-color var(--transition), box-shadow var(--transition);
 }
 .emp-card:hover {
@@ -529,40 +520,35 @@
 	box-shadow: 0 4px 16px rgba(14, 79, 132, 0.10);
 }
 
-.emp-avatar {
-	width: 40px; height: 40px;
-	border-radius: 50%;
-	display: flex; align-items: center; justify-content: center;
-	flex-shrink: 0;
-}
-.emp-initials { font-size: 13px; font-weight: 700; }
 
-.emp-info { flex: 1; min-width: 0; }
-.emp-name-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
-.emp-name { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+
+.emp-info { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.emp-name { font-weight: 600; font-size: 13.5px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
 .emp-pos {
-	font-size: 11px; font-weight: 700;
+	font-size: 10.5px; font-weight: 700;
 	letter-spacing: 0.04em;
 	white-space: nowrap;
+}
+.emp-spacer { flex: 1; }
+
+@media (max-width: 600px) {
+	.emp-name { max-width: 120px; }
+	.emp-spacer { display: none; }
+	.emp-info { gap: 6px; }
 }
 
 .emp-times { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .time-chip {
-	font-size: 11px;
+	font-size: 10px;
 	color: var(--text-secondary);
 	background: #f1f5f9;
 	border: 1px solid #e2e8f0;
-	padding: 3px 9px;
+	padding: 2px 7px;
 	border-radius: 999px;
 	font-variant-numeric: tabular-nums;
 	white-space: nowrap;
 }
-.time-chip.worked {
-	color: var(--accent-primary);
-	background: rgba(14, 79, 132, 0.07);
-	border-color: rgba(14, 79, 132, 0.2);
-	font-weight: 600;
-}
+
 
 .time-chip-btn {
 	cursor: pointer;
