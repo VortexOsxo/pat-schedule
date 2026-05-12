@@ -9,7 +9,7 @@ const client = new MongoClient(MONGODB_URI);
 
 export async function connect() {
 	await client.connect();
-	return client.db(DB_NAME || 'pat-schedule');
+	return client.db(DB_NAME);
 }
 
 export default client;
