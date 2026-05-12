@@ -201,7 +201,8 @@
 
 <style>
 	.main-content {
-		max-width: 1400px;
+		max-width: 1600px;
+		width: 95%;
 		margin: 20px auto;
 		padding: 0 16px;
 	}

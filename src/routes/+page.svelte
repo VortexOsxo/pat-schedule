@@ -222,7 +222,8 @@
 <style>
 /* ── Grid ───────────────────────────────────────────────────────────── */
 .main-grid {
-	max-width: 1400px;
+	max-width: 1600px;
+	width: 95%;
 	margin: 32px auto;
 	padding: 0 24px 48px;
 	display: grid;
