@@ -52,10 +52,19 @@ export interface Settings {
 	breaksEndH: number;
 	positionsStartH: number;
 	positionsEndH: number;
+	rotationInterval: number;
+	rotationSeed: number;
 }
 
 function loadSettings(): Settings {
-	const fallback = { breaksStartH: 11, breaksEndH: 15, positionsStartH: 10, positionsEndH: 16 };
+	const fallback: Settings = { 
+		breaksStartH: 11, 
+		breaksEndH: 15, 
+		positionsStartH: 10, 
+		positionsEndH: 16,
+		rotationInterval: 2,
+		rotationSeed: 0
+	};
 	if (typeof localStorage === 'undefined') return fallback;
 	try {
 		const saved = JSON.parse(localStorage.getItem('pat-settings') ?? '{}');

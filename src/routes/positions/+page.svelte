@@ -7,55 +7,132 @@
 		{ id: 'speech', name: 'Speech', color: '#6042b0' }
 	];
 
-	const hours = $derived.by(() => {
-		const h = [];
+	const slots = $derived.by(() => {
+		const s = [];
 		const start = Math.max(0, Math.min($settings.positionsStartH, 23));
 		const end = Math.max(start, Math.min($settings.positionsEndH, 23));
-		for (let i = start; i <= end; i++) h.push(i);
-		return h;
+		// Show 30-min slots if the rotation is 30 mins, otherwise stay hourly
+		const showHalf = $settings.rotationInterval <= 0.5;
+		for (let h = start; h <= end; h++) {
+			s.push(h * 2);
+			if (showHalf) s.push(h * 2 + 1);
+		}
+		return s;
 	});
 
-	function getRotation(h: number) {
-		const time = `${String(h).padStart(2, '0')}:00`;
-		const nextTime = `${String(h).padStart(2, '0')}:30`;
-		
-		const allWorking = $employees.filter(emp => {
-			const s = emp.startTime;
-			const e = emp.endTime;
-			return time >= s && time < e;
+	// ── Balanced Schedule Generation ──────────────────────────────────
+	const fullSchedule = $derived.by(() => {
+		const sched: Record<number, { speech: string[], pied2: string[], bateau: string[] }> = {};
+		const history: Record<string, { speech: number, pied2: number }> = {};
+		$employees.forEach(e => history[e.id] = { speech: 0, pied2: 0 });
+
+		const interval = $settings.rotationInterval || 1;
+		const intervalInBlocks = interval * 2;
+		const seed = $settings.rotationSeed || 0;
+
+		// We calculate block by block to ensure balance
+		slots.forEach(idx => {
+			const h = Math.floor(idx / 2);
+			const m = (idx % 2) * 30;
+			const time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+			// New rotation period
+			if (idx % intervalInBlocks === 0 || !sched[idx - 1]) {
+				const availableNow = $employees.filter(e => time >= e.startTime && time < e.endTime);
+				const activePool = availableNow.filter(e => e.breakTime !== time);
+
+				// Helper to break ties consistently but allow regeneration
+				const tieBreak = (a: any, b: any) => (a.id + seed).localeCompare(b.id + seed);
+				const getActiveTotal = (id: string) => history[id].speech + history[id].pied2;
+
+				// 1. Pick for Speech: those who have worked LEAST in TOTAL active positions
+				// (and within that, who worked least in Speech specifically)
+				const speech = [...activePool]
+					.sort((a, b) => 
+						getActiveTotal(a.id) - getActiveTotal(b.id) || 
+						history[a.id].speech - history[b.id].speech || 
+						tieBreak(a, b)
+					)
+					.slice(0, 2);
+				
+				const remaining = activePool.filter(e => !speech.find(s => s.id === e.id));
+
+				// 2. Pick for 2 Pied: those who have worked LEAST in TOTAL active positions
+				// (and within that, who worked least in 2 Pied specifically)
+				const pied2 = [...remaining]
+					.sort((a, b) => 
+						getActiveTotal(a.id) - getActiveTotal(b.id) || 
+						history[a.id].pied2 - history[b.id].pied2 || 
+						tieBreak(a, b)
+					)
+					.slice(0, 2);
+
+				// 3. Everyone else is in Bateau
+				const assignedIds = new Set([...speech, ...pied2].map(e => e.id));
+				const bateau = availableNow.filter(e => !assignedIds.has(e.id));
+
+				sched[idx] = { 
+					speech: speech.map(e => e.id), 
+					pied2: pied2.map(e => e.id), 
+					bateau: bateau.map(e => e.id) 
+				};
+
+				// Update history for the next interval (30-min block)
+				speech.forEach(e => history[e.id].speech += 0.5);
+				pied2.forEach(e => history[e.id].pied2 += 0.5);
+			} else {
+				// Continue previous assignment within the same interval
+				sched[idx] = sched[idx - 1];
+			}
 		});
+		return sched;
+	});
 
-		if (allWorking.length === 0) return { speech: [], pied2: [], bateau: [] };
+	function getRotation(idx: number) {
+		const res = fullSchedule[idx];
+		if (!res) return { speech: [], pied2: [], bateau: [] };
 
-		// Sort to have a consistent order for rotation
-		const sorted = [...allWorking].sort((a, b) => a.id.localeCompare(b.id));
-		const offset = h % sorted.length;
-		const rotated = [...sorted.slice(offset), ...sorted.slice(0, offset)];
+		const h = Math.floor(idx / 2);
+		const m = (idx % 2) * 30;
+		const time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+		const isOnBreak = (emp: any) => emp.breakTime === time;
 
-		// Identify who is on break
-		const isEmpOnBreak = (emp: any) => emp.breakTime === time || emp.breakTime === nextTime;
+		const findEmp = (id: string) => {
+			const e = $employees.find(emp => emp.id === id);
+			return e ? { ...e, onBreak: isOnBreak(e) } : null;
+		};
 
-		// We need to pick 2 for Speech and 2 for 2Pied from people NOT on break
-		const activePool = rotated.filter(e => !isEmpOnBreak(e));
-		const breakPool = rotated.filter(e => isEmpOnBreak(e));
-
-		const speech = activePool.slice(0, 2);
-		const pied2 = activePool.slice(2, 4);
-		
-		// Bateau gets everyone else:
-		// 1. People in the activePool who weren't picked for Speech/2Pied
-		// 2. Everyone in the breakPool
-		const assignedIds = new Set([...speech, ...pied2].map(e => e.id));
-		const bateau = rotated.filter(e => !assignedIds.has(e.id));
-
-		const mapEmp = (emp: any) => ({ ...emp, onBreak: isEmpOnBreak(emp) });
-
-		return { 
-			speech: speech.map(mapEmp), 
-			pied2: pied2.map(mapEmp), 
-			bateau: bateau.map(mapEmp) 
+		return {
+			speech: res.speech.map(findEmp).filter(Boolean),
+			pied2: res.pied2.map(findEmp).filter(Boolean),
+			bateau: res.bateau.map(findEmp).filter(Boolean),
+			time
 		};
 	}
+
+	const stats = $derived.by(() => {
+		const s: Record<string, { speech: number, pied2: number }> = {};
+		$employees.forEach(e => s[e.id] = { speech: 0, pied2: 0 });
+
+		slots.forEach(idx => {
+			const res = getRotation(idx);
+			// Each slot is 0.5 hour
+			const weight = $settings.rotationInterval <= 0.5 ? 0.5 : 1; 
+			// Wait, if I show hourly slots, each slot represents 1 hour.
+			// If I show 30-min slots, each slot represents 0.5 hour.
+			const increment = $settings.rotationInterval <= 0.5 ? 0.5 : 1;
+
+			res.speech.forEach(e => { if (e && s[e.id]) s[e.id].speech += increment; });
+			res.pied2.forEach(e => { if (e && s[e.id]) s[e.id].pied2 += increment; });
+		});
+
+		return $employees.map(e => ({
+			name: e.name,
+			speech: s[e.id]?.speech || 0,
+			pied2: s[e.id]?.pied2 || 0,
+			total: (s[e.id]?.speech || 0) + (s[e.id]?.pied2 || 0)
+		})).sort((a, b) => b.total - a.total);
+	});
 </script>
 
 <main class="main-content">
@@ -78,6 +155,26 @@
 				<span>h</span>
 			</div>
 		</div>
+
+		<div class="extra-controls">
+			<div class="control-field">
+				<label for="interval">Rotation</label>
+				<select id="interval" 
+					value={$settings.rotationInterval} 
+					onchange={(e) => settings.update(s => ({ ...s, rotationInterval: +e.currentTarget.value }))}
+					class="select-input">
+					<option value={0.5}>Chaque 30 minutes</option>
+					<option value={1}>Chaque heure</option>
+					<option value={2}>Chaque 2 heures</option>
+					<option value={3}>Chaque 3 heures</option>
+					<option value={4}>Chaque 4 heures</option>
+				</select>
+			</div>
+
+			<button class="btn-regen" onclick={() => settings.update(s => ({ ...s, rotationSeed: s.rotationSeed + 1 }))}>
+				<span>🔄</span> Regénérer
+			</button>
+		</div>
 	</div>
 
 	<div class="rotation-grid">
@@ -89,19 +186,21 @@
 		</div>
 
 		<div class="grid-body">
-			{#each hours as h}
-				{@const res = getRotation(h)}
-				<div class="hour-row">
-					<div class="time-cell">{h}:00</div>
+			{#each slots as idx}
+				{@const res = getRotation(idx)}
+				<div class="hour-row" class:half-hour={res.time.endsWith(':30')}>
+					<div class="time-cell">{res.time}</div>
 					
 					<!-- Bateau Column -->
 					<div class="role-cell bateau-cell">
 						{#each res.bateau as emp}
-							<div class="emp-tag" style="border-left-color: #0e4f84" class:is-on-break={emp.onBreak}>
-								<div class="emp-info">
-									<span class="emp-name">{emp.name}</span>
+							{#if emp}
+								<div class="emp-tag" style="border-left-color: #0e4f84" class:is-on-break={emp.onBreak}>
+									<div class="emp-info">
+										<span class="emp-name">{emp.name}</span>
+									</div>
 								</div>
-							</div>
+							{/if}
 						{:else}
 							<span class="empty-label">—</span>
 						{/each}
@@ -110,11 +209,13 @@
 					<!-- 2 Pied Column -->
 					<div class="role-cell pied-cell">
 						{#each res.pied2 as emp}
-							<div class="emp-tag" style="border-left-color: #0e8a8a" class:is-on-break={emp.onBreak}>
-								<div class="emp-info">
-									<span class="emp-name">{emp.name}</span>
+							{#if emp}
+								<div class="emp-tag" style="border-left-color: #0e8a8a" class:is-on-break={emp.onBreak}>
+									<div class="emp-info">
+										<span class="emp-name">{emp.name}</span>
+									</div>
 								</div>
-							</div>
+							{/if}
 						{:else}
 							<span class="empty-label">—</span>
 						{/each}
@@ -123,14 +224,41 @@
 					<!-- Speech Column -->
 					<div class="role-cell speech-cell">
 						{#each res.speech as emp}
-							<div class="emp-tag" style="border-left-color: #6042b0" class:is-on-break={emp.onBreak}>
-								<div class="emp-info">
-									<span class="emp-name">{emp.name}</span>
+							{#if emp}
+								<div class="emp-tag" style="border-left-color: #6042b0" class:is-on-break={emp.onBreak}>
+									<div class="emp-info">
+										<span class="emp-name">{emp.name}</span>
+									</div>
 								</div>
-							</div>
+							{/if}
 						{:else}
 							<span class="empty-label">—</span>
 						{/each}
+					</div>
+				</div>
+			{/each}
+		</div>
+	</div>
+
+	<div class="stats-section">
+		<h2 class="stats-title">Sommaire des positions (heures)</h2>
+		<div class="stats-grid">
+			{#each stats as s}
+				<div class="stats-card">
+					<div class="stats-name">{s.name}</div>
+					<div class="stats-values">
+						<div class="stat-item">
+							<span class="stat-label">Speech</span>
+							<span class="stat-val" style="color: #6042b0">{s.speech}h</span>
+						</div>
+						<div class="stat-item">
+							<span class="stat-label">2 Pied</span>
+							<span class="stat-val" style="color: #0e8a8a">{s.pied2}h</span>
+						</div>
+						<div class="stat-item total">
+							<span class="stat-label">Total</span>
+							<span class="stat-val">{s.total}h</span>
+						</div>
 					</div>
 				</div>
 			{/each}
@@ -170,6 +298,53 @@
 		text-align: center;
 	}
 
+	.extra-controls {
+		display: flex;
+		align-items: center;
+		gap: 24px;
+	}
+
+	.control-field {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--text-secondary);
+	}
+
+	.select-input {
+		padding: 4px 12px;
+		border: 1.5px solid var(--border-subtle);
+		border-radius: 6px;
+		font-weight: 700;
+		color: var(--accent-primary);
+		background: #fff;
+		cursor: pointer;
+	}
+
+	.btn-regen {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 6px 16px;
+		background: var(--bg-elevated);
+		border: 1.5px solid var(--border-subtle);
+		border-radius: 8px;
+		font-size: 13px;
+		font-weight: 700;
+		color: var(--accent-primary);
+		transition: all 0.2s;
+	}
+	.btn-regen:hover {
+		background: #fff;
+		border-color: var(--accent-primary);
+		transform: translateY(-1px);
+		box-shadow: var(--shadow-sm);
+	}
+	.btn-regen:active { transform: translateY(0); }
+	.btn-regen span { font-size: 14px; }
+
 	.rotation-grid {
 		background: #fff;
 		border-radius: var(--radius-lg);
@@ -178,6 +353,81 @@
 		box-shadow: var(--shadow-md);
 		display: flex;
 		flex-direction: column;
+		margin-bottom: 40px;
+	}
+
+	.stats-section {
+		background: #fff;
+		padding: 24px;
+		border-radius: var(--radius-lg);
+		border: 1px solid var(--border-subtle);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.stats-title {
+		font-size: 15px;
+		font-weight: 700;
+		color: var(--text-secondary);
+		margin-bottom: 20px;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.stats-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+		gap: 16px;
+	}
+
+	.stats-card {
+		padding: 16px;
+		background: var(--bg-elevated);
+		border: 1px solid var(--border-subtle);
+		border-radius: 12px;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.stats-name {
+		font-weight: 800;
+		font-size: 14px;
+		color: var(--text-primary);
+		border-bottom: 1.5px solid var(--border-subtle);
+		padding-bottom: 8px;
+	}
+
+	.stats-values {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.stat-item {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		font-size: 12px;
+	}
+
+	.stat-label {
+		color: var(--text-muted);
+		font-weight: 600;
+	}
+
+	.stat-val {
+		font-weight: 800;
+		color: var(--text-primary);
+	}
+
+	.stat-item.total {
+		margin-top: 4px;
+		padding-top: 4px;
+		border-top: 1px dashed var(--border-subtle);
+	}
+
+	@media (max-width: 800px) {
+		.stats-grid { grid-template-columns: 1fr; }
 	}
 
 	.grid-header {
@@ -212,9 +462,14 @@
 	.hour-row {
 		display: flex;
 		border-bottom: 2px solid #e2e8f0;
-		min-height: 80px;
+		min-height: 60px;
 	}
 	.hour-row:last-child { border-bottom: none; }
+
+	.hour-row.half-hour {
+		background: #f9fafb;
+		border-bottom: 1px dashed #e2e8f0;
+	}
 
 	.time-cell {
 		width: 100px;
@@ -226,6 +481,12 @@
 		border-right: 2px solid #e2e8f0;
 		background: var(--bg-elevated);
 		font-variant-numeric: tabular-nums;
+	}
+
+	.hour-row.half-hour .time-cell {
+		font-weight: 600;
+		font-size: 13px;
+		opacity: 0.8;
 	}
 
 	.role-cell {
@@ -255,9 +516,9 @@
 	.emp-name { font-size: 14px; font-weight: 700; color: var(--text-primary); }
 
 	.emp-tag.is-on-break { 
-		opacity: 0.75;
 		background: #f1f5f9;
-		border-color: #e2e8f0;
+		border-color: #cbd5e1;
+		opacity: 0.7;
 	}
 
 	.empty-label { font-size: 14px; color: var(--text-muted); align-self: center; margin-top: 12px; }
