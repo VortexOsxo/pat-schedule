@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { employees, addMinutes, settings } from '$lib/stores/schedule';
 	import { get } from 'svelte/store';
-	import { Input, EmployeeCard, Dropdown, DropdownItem } from '$lib';
+	import { Input, EmployeeCard } from '$lib';
 	import { deserialize } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 

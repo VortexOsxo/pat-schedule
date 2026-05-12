@@ -10,19 +10,6 @@ export interface Employee {
 	breakTime?: string; // HH:mm  (30-min break starts at this time)
 }
 
-function uuid(): string {
-	return crypto.randomUUID();
-}
-
-function load(): Employee[] {
-	if (typeof localStorage === 'undefined') return [];
-	try {
-		return JSON.parse(localStorage.getItem('pat-employees') ?? '[]');
-	} catch {
-		return [];
-	}
-}
-
 function createStore() {
 	const { subscribe, update, set } = writable<Employee[]>([]);
 
@@ -49,24 +36,6 @@ export interface Settings {
 	positionsEndH: number;
 	rotationInterval: number;
 	rotationSeed: number;
-}
-
-function loadSettings(): Settings {
-	const fallback: Settings = { 
-		breaksStartH: 11, 
-		breaksEndH: 15, 
-		positionsStartH: 10, 
-		positionsEndH: 16,
-		rotationInterval: 2,
-		rotationSeed: 0
-	};
-	if (typeof localStorage === 'undefined') return fallback;
-	try {
-		const saved = JSON.parse(localStorage.getItem('pat-settings') ?? '{}');
-		return { ...fallback, ...saved };
-	} catch {
-		return fallback;
-	}
 }
 
 function createSettingsStore() {

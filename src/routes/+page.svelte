@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { employees, POSITIONS, workedMinutes, fmtDuration, addMinutes } from '$lib/stores/schedule';
+	import { employees, POSITIONS } from '$lib/stores/schedule';
 	import { get } from 'svelte/store';
-	import { Card, Input, Select, Button, EmployeeCard, Dialog, Dropdown, DropdownItem } from '$lib';
+	import { Card, Input, Button, EmployeeCard, Dialog, Dropdown, DropdownItem } from '$lib';
 	import { enhance } from '$app/forms';
 	import type { ActionResult } from '@sveltejs/kit';
 
@@ -55,19 +55,9 @@
 		error = ''; return true;
 	}
 
-
-
-
-
-	// Delete with confirmation state
 	let pendingDelete = $state<string | null>(null);
 	function requestDelete(id: string) { pendingDelete = id; }
-	function confirmDelete() {
-		if (pendingDelete) { employees.remove(pendingDelete); pendingDelete = null; }
-	}
 	function cancelDelete() { pendingDelete = null; }
-
-
 
 	// Position badge colors
 	const posColors: Record<string, string> = {
@@ -80,11 +70,6 @@
 		return posColors[pos] ?? '#94a3b8';
 	}
 
-
-	// Svelte action: focus element on mount
-	function focusOnMount(node: HTMLElement) {
-		node.focus();
-	}
 </script>
 
 <svelte:head>

@@ -2,7 +2,6 @@
 	import '../app.css';
 	import { page } from '$app/state';
 	import { employees, settings } from '$lib/stores/schedule';
-	import { Dropdown, DropdownItem } from '$lib';
 
 	let { data, children } = $props();
 

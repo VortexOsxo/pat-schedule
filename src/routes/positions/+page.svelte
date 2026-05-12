@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { employees, addMinutes, settings } from '$lib/stores/schedule';
+	import { employees, settings } from '$lib/stores/schedule';
 	import { get } from 'svelte/store';
-	import { Button, Input, Select, Card, EmployeeCard, Dropdown, DropdownItem } from '$lib';
+	import { Button, Input, Card, EmployeeCard, Dropdown, DropdownItem } from '$lib';
 	import { invalidateAll } from '$app/navigation';
 
 	const roles = [
