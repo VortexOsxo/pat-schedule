@@ -7,44 +7,52 @@
 		{ id: 'speech', name: 'Speech', color: '#6042b0' }
 	];
 
-	const slots = $derived.by(() => {
-		const s = [];
-		const start = Math.max(0, Math.min($settings.startH, 23));
-		const end = Math.max(start, Math.min($settings.endH, 23));
-		for (let i = start; i <= end; i++) {
-			const hh = String(i).padStart(2, '0');
-			s.push(`${hh}:00`);
-			s.push(`${hh}:30`);
-		}
-		return s;
+	const hours = $derived.by(() => {
+		const h = [];
+		for (let i = $settings.startH; i <= $settings.endH; i++) h.push(i);
+		return h;
 	});
 
-	function getRotation(time: string) {
-		const available = $employees.filter(emp => {
+	function getRotation(h: number) {
+		const time = `${String(h).padStart(2, '0')}:00`;
+		const nextTime = `${String(h).padStart(2, '0')}:30`;
+		
+		const allWorking = $employees.filter(emp => {
 			const s = emp.startTime;
 			const e = emp.endTime;
-			const b = emp.breakTime;
-			const isWorking = time >= s && time < e;
-			const isOnBreak = b && (time >= b && time < addMinutes(b, 30));
-			return isWorking && !isOnBreak;
+			return time >= s && time < e;
 		});
 
-		if (available.length === 0) return { speech: [], pied2: [], bateau: [] };
+		if (allWorking.length === 0) return { speech: [], pied2: [], bateau: [] };
 
-		// Deterministic rotation: we use the hour + 0.5 for the offset
-		const [h, m] = time.split(':').map(Number);
-		const rotationValue = h + (m === 30 ? 0.5 : 0);
-		
-		const sorted = [...available].sort((a, b) => a.id.localeCompare(b.id));
-		// We multiply by 2 to get a unique integer offset for each 30-min slot
-		const offset = Math.floor(rotationValue * 2) % sorted.length;
+		// Sort to have a consistent order for rotation
+		const sorted = [...allWorking].sort((a, b) => a.id.localeCompare(b.id));
+		const offset = h % sorted.length;
 		const rotated = [...sorted.slice(offset), ...sorted.slice(0, offset)];
 
-		const speech = rotated.slice(0, 2);
-		const pied2 = rotated.slice(2, 4);
-		const bateau = rotated.slice(4);
+		// Identify who is on break
+		const isEmpOnBreak = (emp: any) => emp.breakTime === time || emp.breakTime === nextTime;
 
-		return { speech, pied2, bateau };
+		// We need to pick 2 for Speech and 2 for 2Pied from people NOT on break
+		const activePool = rotated.filter(e => !isEmpOnBreak(e));
+		const breakPool = rotated.filter(e => isEmpOnBreak(e));
+
+		const speech = activePool.slice(0, 2);
+		const pied2 = activePool.slice(2, 4);
+		
+		// Bateau gets everyone else:
+		// 1. People in the activePool who weren't picked for Speech/2Pied
+		// 2. Everyone in the breakPool
+		const assignedIds = new Set([...speech, ...pied2].map(e => e.id));
+		const bateau = rotated.filter(e => !assignedIds.has(e.id));
+
+		const mapEmp = (emp: any) => ({ ...emp, onBreak: isEmpOnBreak(emp) });
+
+		return { 
+			speech: speech.map(mapEmp), 
+			pied2: pied2.map(mapEmp), 
+			bateau: bateau.map(mapEmp) 
+		};
 	}
 </script>
 
@@ -79,16 +87,18 @@
 		</div>
 
 		<div class="grid-body">
-			{#each slots as time}
-				{@const res = getRotation(time)}
+			{#each hours as h}
+				{@const res = getRotation(h)}
 				<div class="hour-row">
-					<div class="time-cell">{time}</div>
+					<div class="time-cell">{h}:00</div>
 					
 					<!-- Bateau Column -->
 					<div class="role-cell bateau-cell">
 						{#each res.bateau as emp}
-							<div class="emp-tag" style="border-left-color: #0e4f84">
-								<span class="emp-name">{emp.name}</span>
+							<div class="emp-tag" style="border-left-color: #0e4f84" class:is-on-break={emp.onBreak}>
+								<div class="emp-info">
+									<span class="emp-name">{emp.name}</span>
+								</div>
 							</div>
 						{:else}
 							<span class="empty-label">—</span>
@@ -98,8 +108,10 @@
 					<!-- 2 Pied Column -->
 					<div class="role-cell pied-cell">
 						{#each res.pied2 as emp}
-							<div class="emp-tag" style="border-left-color: #0e8a8a">
-								<span class="emp-name">{emp.name}</span>
+							<div class="emp-tag" style="border-left-color: #0e8a8a" class:is-on-break={emp.onBreak}>
+								<div class="emp-info">
+									<span class="emp-name">{emp.name}</span>
+								</div>
 							</div>
 						{:else}
 							<span class="empty-label">—</span>
@@ -109,8 +121,10 @@
 					<!-- Speech Column -->
 					<div class="role-cell speech-cell">
 						{#each res.speech as emp}
-							<div class="emp-tag" style="border-left-color: #6042b0">
-								<span class="emp-name">{emp.name}</span>
+							<div class="emp-tag" style="border-left-color: #6042b0" class:is-on-break={emp.onBreak}>
+								<div class="emp-info">
+									<span class="emp-name">{emp.name}</span>
+								</div>
 							</div>
 						{:else}
 							<span class="empty-label">—</span>
@@ -124,7 +138,8 @@
 
 <style>
 	.main-content {
-		max-width: 1400px;
+		max-width: 1600px;
+		width: 95%;
 		margin: 20px auto;
 		padding: 0 16px;
 	}
@@ -166,7 +181,7 @@
 	.grid-header {
 		display: flex;
 		background: var(--bg-elevated);
-		border-bottom: 2px solid var(--border-subtle);
+		border-bottom: 2px solid #cbd5e1;
 	}
 
 	.time-col {
@@ -175,11 +190,12 @@
 		font-weight: 800;
 		color: var(--text-secondary);
 		text-align: center;
-		border-right: 1.5px solid var(--border-subtle);
+		border-right: 2px solid #e2e8f0;
 	}
 
 	.role-header-cell {
-		flex: 1;
+		flex: 1 1 0;
+		min-width: 0;
 		padding: 16px;
 		text-align: center;
 		font-size: 14px;
@@ -187,13 +203,13 @@
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
 		border-top: 5px solid #94a3b8;
-		border-right: 1.5px solid var(--border-subtle);
+		border-right: 2px solid #e2e8f0;
 	}
 	.role-header-cell:last-child { border-right: none; }
 
 	.hour-row {
 		display: flex;
-		border-bottom: 1.5px solid var(--border-subtle);
+		border-bottom: 2px solid #e2e8f0;
 		min-height: 80px;
 	}
 	.hour-row:last-child { border-bottom: none; }
@@ -205,42 +221,57 @@
 		justify-content: center;
 		font-weight: 800;
 		color: var(--text-secondary);
-		border-right: 1.5px solid var(--border-subtle);
+		border-right: 2px solid #e2e8f0;
 		background: var(--bg-elevated);
 		font-variant-numeric: tabular-nums;
 	}
 
 	.role-cell {
-		flex: 1;
+		flex: 1 1 0;
+		min-width: 0;
 		padding: 12px;
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
-		border-right: 1.5px solid var(--border-subtle);
+		border-right: 2px solid #e2e8f0;
 	}
 	.role-cell:last-child { border-right: none; }
 
 	.emp-tag {
 		background: #fff;
 		border: 1px solid var(--border-subtle);
-		border-left: 4px solid #94a3b8;
+		border-left: 5px solid #94a3b8;
 		border-radius: 6px;
 		padding: 8px 12px;
 		display: flex;
 		align-items: center;
 		box-shadow: var(--shadow-sm);
 		width: 100%;
-		max-width: 240px;
+		transition: all 0.2s;
 	}
+	.emp-info { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; }
 	.emp-name { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+
+	.emp-tag.is-on-break { 
+		opacity: 0.75;
+		background: #f1f5f9;
+		border-color: #e2e8f0;
+	}
 
 	.empty-label { font-size: 14px; color: var(--text-muted); align-self: center; margin-top: 12px; }
 
 	@media (max-width: 800px) {
-		.role-header-cell { font-size: 11px; padding: 12px 4px; }
-		.time-col, .time-cell { width: 70px; font-size: 12px; }
-		.emp-name { font-size: 12px; }
-		.emp-tag { padding: 6px 10px; }
+		.controls-bar { flex-direction: column; gap: 16px; align-items: flex-start; padding: 16px; }
+		.rotation-grid {
+			overflow-x: hidden;
+		}
+		.role-header-cell { font-size: 10px; padding: 10px 4px; border-top-width: 3px; }
+		.time-col, .time-cell { width: 60px; font-size: 11px; padding: 8px 4px; }
+		.emp-name { font-size: 11px; }
+		.emp-tag { padding: 4px 6px; border-left-width: 3px; }
+		.role-cell { padding: 8px 4px; gap: 4px; }
+		.hour-row, .grid-header { width: 100%; }
+		.emp-info { gap: 4px; }
 	}
 </style>
 
