@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { employees, addMinutes } from '$lib/stores/schedule';
 
-	let startRange = $state(8);
-	let endRange = $state(20);
+	let startRange = $state(11);
+	let endRange = $state(15);
 
 	const slots = $derived.by(() => {
 		const s = [];
@@ -25,19 +25,50 @@
 		});
 	}
 
-	let editingId = $state<string | null>(null);
-	let editingValue = $state('');
+	let draggedId = $state<string | null>(null);
+	let dragOverSlot = $state<string | null>(null);
 
-	function startEdit(emp: any) {
-		editingId = emp.id;
-		editingValue = emp.breakTime;
+	function handleDragStart(e: DragEvent, id: string) {
+		draggedId = id;
+		if (e.dataTransfer) {
+			e.dataTransfer.effectAllowed = 'move';
+		}
 	}
 
-	function saveEdit(id: string) {
-		if (/^([01]\d|2[0-3]):[0-5]\d$/.test(editingValue)) {
-			employees.update(id, { breakTime: editingValue });
+	function handleDrop(e: DragEvent, slotTime: string) {
+		e.preventDefault();
+		dragOverSlot = null;
+		if (draggedId) {
+			employees.update(draggedId, { breakTime: slotTime });
+			draggedId = null;
 		}
-		editingId = null;
+	}
+
+	// ── Mobile Touch Support ──
+	function handleTouchStart(id: string) {
+		draggedId = id;
+	}
+
+	function handleTouchMove(e: TouchEvent) {
+		if (!draggedId) return;
+		e.preventDefault();
+		const touch = e.touches[0];
+		const target = document.elementFromPoint(touch.clientX, touch.clientY);
+		const slot = target?.closest('.time-slot');
+		if (slot) {
+			const time = slot.getAttribute('data-time');
+			if (time) dragOverSlot = time;
+		} else {
+			dragOverSlot = null;
+		}
+	}
+
+	function handleTouchEnd() {
+		if (draggedId && dragOverSlot) {
+			employees.update(draggedId, { breakTime: dragOverSlot });
+		}
+		draggedId = null;
+		dragOverSlot = null;
 	}
 
 	const posColors: Record<string, string> = {
@@ -66,13 +97,22 @@
 				<span>h</span>
 			</div>
 		</div>
-		<p class="controls-hint">Affichage des créneaux de {startRange}h à {endRange}h:30</p>
 	</div>
 
-	<div class="break-grid">
+	<div class="break-grid" role="list">
 		{#each slots as time}
 			{@const onBreak = getEmployeesOnBreak(time)}
-			<div class="time-slot" class:has-breaks={onBreak.length > 0}>
+			<div 
+				class="time-slot" 
+				class:has-breaks={onBreak.length > 0}
+				class:drag-over={dragOverSlot === time}
+				data-time={time}
+				ondragover={(e) => { e.preventDefault(); dragOverSlot = time; }}
+				ondragleave={() => dragOverSlot = null}
+				ondrop={(e) => handleDrop(e, time)}
+				role="listitem"
+				aria-label="Créneau de {time}"
+			>
 				<div class="slot-time">{time}</div>
 				<div class="slot-content">
 					{#if onBreak.length === 0}
@@ -80,27 +120,23 @@
 					{:else}
 						<div class="break-tags">
 							{#each onBreak as emp}
-								<div class="break-tag" style="border-left-color: {posColors[emp.position] || '#94a3b8'}">
+								<div 
+									class="break-tag" 
+									style="border-left-color: {posColors[emp.position] || '#94a3b8'}"
+									draggable="true"
+									ondragstart={(e) => handleDragStart(e, emp.id)}
+									ontouchstart={() => handleTouchStart(emp.id)}
+									ontouchmove={handleTouchMove}
+									ontouchend={handleTouchEnd}
+									class:is-dragging={draggedId === emp.id}
+									role="button"
+									tabindex="0"
+									aria-label="Déplacer {emp.name}"
+								>
 									<div class="break-tag-main">
 										<span class="tag-name">{emp.name}</span>
-										<span class="tag-pos" style="color: {posColors[emp.position]}">{emp.position}</span>
 									</div>
-									<div class="break-tag-action">
-										{#if editingId === emp.id}
-											<input 
-												type="text" 
-												class="tag-input" 
-												bind:value={editingValue} 
-												onblur={() => saveEdit(emp.id)}
-												onkeydown={e => e.key === 'Enter' && saveEdit(emp.id)}
-												autofocus
-											/>
-										{:else}
-											<button class="tag-edit-btn" onclick={() => startEdit(emp)}>
-												{emp.breakTime}
-											</button>
-										{/if}
-									</div>
+
 								</div>
 							{/each}
 						</div>
@@ -143,8 +179,6 @@
 	}
 	.range-input:focus { border-color: var(--accent-primary); outline: none; box-shadow: 0 0 0 3px var(--accent-glow); }
 	
-	.controls-hint { font-size: 12px; color: var(--text-muted); font-style: italic; }
-
 	.break-grid {
 		display: flex;
 		flex-direction: column;
@@ -162,6 +196,7 @@
 	}
 	.time-slot:last-child { border-bottom: none; }
 	.time-slot.has-breaks { background: #fcfdfe; }
+	.time-slot.drag-over { background: rgba(14, 79, 132, 0.08); border-right: 2px dashed var(--accent-primary); }
 
 	.slot-time {
 		width: 80px;
@@ -184,47 +219,36 @@
 
 	.break-tags {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
+		flex-direction: column;
+		gap: 6px;
 		width: 100%;
 	}
 
 	.break-tag {
 		background: #fff;
 		border: 1px solid var(--border-subtle);
-		border-left: 3px solid #94a3b8;
+		border-left: 4px solid #94a3b8;
 		border-radius: 6px;
-		padding: 6px 10px;
+		padding: 8px 12px;
 		display: flex;
 		align-items: center;
 		gap: 12px;
 		box-shadow: var(--shadow-sm);
-		min-width: 200px;
+		width: fit-content;
+		min-width: 160px;
+		cursor: grab;
+		transition: transform 0.1s, opacity 0.1s;
+		touch-action: none;
+	}
+	.break-tag:active { cursor: grabbing; }
+	.break-tag.is-dragging { 
+		opacity: 0.4; 
+		transform: scale(0.95); 
+		touch-action: none;
 	}
 
 	.break-tag-main { display: flex; flex-direction: column; flex: 1; }
-	.tag-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-	.tag-pos { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
-
-	.tag-edit-btn {
-		font-size: 11px; font-weight: 700;
-		background: var(--bg-elevated);
-		border: 1px solid var(--border-subtle);
-		padding: 2px 6px;
-		border-radius: 4px;
-		color: var(--text-secondary);
-		cursor: pointer;
-	}
-	.tag-edit-btn:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
-
-	.tag-input {
-		width: 60px;
-		font-size: 11px;
-		padding: 2px 4px;
-		border: 1px solid var(--accent-primary);
-		border-radius: 4px;
-		text-align: center;
-	}
+	.tag-name { font-size: 14px; font-weight: 700; color: var(--text-primary); }
 
 	@media (max-width: 600px) {
 		.break-tag { min-width: 0; flex: 1; }

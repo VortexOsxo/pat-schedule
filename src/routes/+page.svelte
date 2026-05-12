@@ -64,30 +64,7 @@
 	}
 	function cancelDelete() { pendingDelete = null; }
 
-	// Inline break-time editing
-	let editingBreakId = $state<string | null>(null);
-	let editingBreakValue = $state('');
 
-	function startEditBreak(emp: { id: string; breakTime: string }) {
-		editingBreakId = emp.id;
-		editingBreakValue = emp.breakTime;
-	}
-
-	function commitBreak(id: string, startT: string, endT: string) {
-		const [bh, bm] = editingBreakValue.split(':').map(Number);
-		const [sh, sm] = startT.split(':').map(Number);
-		const [eh, em] = endT.split(':').map(Number);
-		const b = bh * 60 + bm, s = sh * 60 + sm, e = eh * 60 + em;
-		if (b >= s && b + 30 <= e) {
-			employees.update(id, { breakTime: editingBreakValue });
-		}
-		editingBreakId = null;
-	}
-
-	function onBreakKeydown(e: KeyboardEvent, id: string, startT: string, endT: string) {
-		if (e.key === 'Enter') commitBreak(id, startT, endT);
-		if (e.key === 'Escape') editingBreakId = null;
-	}
 
 	// Position badge colors
 	const posColors: Record<string, string> = {
@@ -205,26 +182,7 @@
 								<div class="emp-spacer"></div>
 								<div class="emp-times">
 									<span class="time-chip">{emp.startTime} – {emp.endTime}</span>
-									{#if editingBreakId === emp.id}
-										<div class="break-edit-row">
-											<input
-												class="input time-input break-edit"
-												type="text"
-												placeholder="HH:MM"
-												maxlength="5"
-												bind:value={editingBreakValue}
-												onblur={() => commitBreak(emp.id, emp.startTime, emp.endTime)}
-												onkeydown={(e) => onBreakKeydown(e, emp.id, emp.startTime, emp.endTime)}
-												use:focusOnMount
-											/>
-										</div>
-									{:else}
-										<button
-											class="time-chip time-chip-btn"
-											title="Modifier la pause"
-											onclick={() => startEditBreak(emp)}
-										>Pause {emp.breakTime}</button>
-									{/if}
+
 								</div>
 							</div>
 
@@ -491,24 +449,9 @@
 }
 
 
-.time-chip-btn {
-	cursor: pointer;
-	transition: background var(--transition), border-color var(--transition), color var(--transition);
-}
-.time-chip-btn:hover {
-	background: rgba(14, 79, 132, 0.1);
-	border-color: var(--accent-primary);
-	color: var(--accent-primary);
-}
 
-.break-edit-row { flex-basis: 100%; display: flex; }
-.break-edit {
-	padding: 2px 10px;
-	height: 26px;
-	font-size: 11px;
-	border-radius: 999px;
-	width: 120px;
-}
+
+
 
 .delete-btn {
 	opacity: 0;
