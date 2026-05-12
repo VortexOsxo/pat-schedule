@@ -9,7 +9,9 @@
 
 	const hours = $derived.by(() => {
 		const h = [];
-		for (let i = $settings.startH; i <= $settings.endH; i++) h.push(i);
+		const start = Math.max(0, Math.min($settings.positionsStartH, 23));
+		const end = Math.max(start, Math.min($settings.positionsEndH, 23));
+		for (let i = start; i <= end; i++) h.push(i);
 		return h;
 	});
 
@@ -62,16 +64,16 @@
 			<div class="range-field">
 				<label for="start-h">Début</label>
 				<input id="start-h" type="number" min="0" max="23" 
-					value={$settings.startH} 
-					oninput={(e) => settings.update(s => ({ ...s, startH: +e.currentTarget.value }))}
+					value={$settings.positionsStartH} 
+					oninput={(e) => settings.update(s => ({ ...s, positionsStartH: +e.currentTarget.value }))}
 					class="range-input" />
 				<span>h</span>
 			</div>
 			<div class="range-field">
 				<label for="end-h">Fin</label>
 				<input id="end-h" type="number" min="0" max="23" 
-					value={$settings.endH} 
-					oninput={(e) => settings.update(s => ({ ...s, endH: +e.currentTarget.value }))}
+					value={$settings.positionsEndH} 
+					oninput={(e) => settings.update(s => ({ ...s, positionsEndH: +e.currentTarget.value }))}
 					class="range-input" />
 				<span>h</span>
 			</div>
@@ -82,8 +84,8 @@
 		<div class="grid-header">
 			<div class="time-col">Heure</div>
 			<div class="role-header-cell" style="border-top-color: #0e4f84">Bateau</div>
-			<div class="role-header-cell" style="border-top-color: #0e8a8a">2 Pied (2)</div>
-			<div class="role-header-cell" style="border-top-color: #6042b0">Speech (2)</div>
+			<div class="role-header-cell" style="border-top-color: #0e8a8a">2 Pied</div>
+			<div class="role-header-cell" style="border-top-color: #6042b0">Speech</div>
 		</div>
 
 		<div class="grid-body">

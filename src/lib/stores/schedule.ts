@@ -46,18 +46,22 @@ function createStore() {
 
 export const employees = createStore();
 
-// ── Settings Store (Shared Range) ────────────────────────────────────
+// ── Settings Store (Independent Ranges) ─────────────────────────────
 export interface Settings {
-	startH: number;
-	endH: number;
+	breaksStartH: number;
+	breaksEndH: number;
+	positionsStartH: number;
+	positionsEndH: number;
 }
 
 function loadSettings(): Settings {
-	if (typeof localStorage === 'undefined') return { startH: 11, endH: 15 };
+	const fallback = { breaksStartH: 11, breaksEndH: 15, positionsStartH: 10, positionsEndH: 16 };
+	if (typeof localStorage === 'undefined') return fallback;
 	try {
-		return JSON.parse(localStorage.getItem('pat-settings') ?? '{"startH":11,"endH":15}');
+		const saved = JSON.parse(localStorage.getItem('pat-settings') ?? '{}');
+		return { ...fallback, ...saved };
 	} catch {
-		return { startH: 11, endH: 15 };
+		return fallback;
 	}
 }
 

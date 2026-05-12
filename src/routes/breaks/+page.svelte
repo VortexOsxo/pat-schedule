@@ -3,8 +3,8 @@
 
 	const slots = $derived.by(() => {
 		const s = [];
-		const start = Math.max(0, Math.min($settings.startH, 23));
-		const end = Math.max(start, Math.min($settings.endH, 23));
+		const start = Math.max(0, Math.min($settings.breaksStartH, 23));
+		const end = Math.max(start, Math.min($settings.breaksEndH, 23));
 		for (let h = start; h <= end; h++) {
 			const hh = String(h).padStart(2, '0');
 			s.push(`${hh}:00`);
@@ -108,16 +108,16 @@
 			<div class="range-field">
 				<label for="start-h">Début</label>
 				<input id="start-h" type="number" min="0" max="23" 
-					value={$settings.startH} 
-					oninput={(e) => settings.update(s => ({ ...s, startH: +e.currentTarget.value }))}
+					value={$settings.breaksStartH} 
+					oninput={(e) => settings.update(s => ({ ...s, breaksStartH: +e.currentTarget.value }))}
 					class="range-input" />
 				<span>h</span>
 			</div>
 			<div class="range-field">
 				<label for="end-h">Fin</label>
 				<input id="end-h" type="number" min="0" max="23" 
-					value={$settings.endH} 
-					oninput={(e) => settings.update(s => ({ ...s, endH: +e.currentTarget.value }))}
+					value={$settings.breaksEndH} 
+					oninput={(e) => settings.update(s => ({ ...s, breaksEndH: +e.currentTarget.value }))}
 					class="range-input" />
 				<span>h</span>
 			</div>
